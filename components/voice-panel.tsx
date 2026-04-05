@@ -13,14 +13,20 @@ export function VoicePanel({
   members,
   roomName,
   joined,
+  muted,
+  connecting,
   participants,
-  onToggleJoin
+  onToggleJoin,
+  onToggleMute
 }: {
   members: Member[];
   roomName: string;
   joined: boolean;
+  muted: boolean;
+  connecting: boolean;
   participants: number;
   onToggleJoin: () => void;
+  onToggleMute: () => void;
 }) {
   return (
     <aside className="flex w-[320px] flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur">
@@ -59,9 +65,20 @@ export function VoicePanel({
           )}
         >
           <Mic size={16} />
-          {joined ? "Connected" : "Join Voice"}
+          {connecting ? "Connecting" : joined ? "Leave Voice" : "Join Voice"}
         </button>
-        <button className="flex items-center justify-center rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white/75">
+        <button
+          onClick={onToggleMute}
+          disabled={!joined}
+          className={clsx(
+            "flex items-center justify-center rounded-2xl border px-4 py-3 transition",
+            joined
+              ? muted
+                ? "border-ember/20 bg-ember/10 text-ember"
+                : "border-white/10 bg-steel text-white/75 hover:bg-blade"
+              : "border-white/10 bg-steel text-white/30"
+          )}
+        >
           <MicOff size={16} />
         </button>
       </div>

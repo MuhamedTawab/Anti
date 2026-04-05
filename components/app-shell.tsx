@@ -91,6 +91,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [authLoading, setAuthLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isVoiceConnecting, setIsVoiceConnecting] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const [presenceMembers, setPresenceMembers] = useState<Record<string, AuthIdentity & { roomId: string | null; serverId: string }>>({});
   const [typingMembers, setTypingMembers] = useState<Record<string, { name: string; channelId: string; expiresAt: number }>>({});
   const [socialData, setSocialData] = useState<SocialPayload>({
@@ -586,6 +587,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     Object.keys(peerConnectionsRef.current).forEach(cleanupPeer);
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
+    setIsMuted(false);
   }
 
   async function sendVoiceSignal(payload: Record<string, unknown>) {
@@ -628,6 +630,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setJoinedVoiceRoomId(null);
     setVoiceParticipants(null);
     setIsVoiceConnecting(false);
+    setIsMuted(false);
   }
 
   function createPeerConnection(remoteUserId: string) {
@@ -1032,6 +1035,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       const payload = (await response.json()) as { roomId: string; participants: number };
       setJoinedVoiceRoomId(payload.roomId);
       setVoiceParticipants(payload.participants);
+      setIsMuted(false);
       if (presenceChannelRef.current && currentUser) {
         await presenceChannelRef.current.track({
           id: currentUser.id,
@@ -1048,6 +1052,18 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     } finally {
       setIsVoiceConnecting(false);
     }
+  }
+
+  function handleToggleMute() {
+    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+
+    if (!audioTrack) {
+      return;
+    }
+
+    const nextMuted = !audioTrack.enabled;
+    audioTrack.enabled = nextMuted;
+    setIsMuted(!nextMuted);
   }
 
   async function handleAuthSubmit() {
@@ -1321,9 +1337,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         <VoicePanel
           roomName={activeVoiceChannel?.name ?? "No Room"}
           members={activeMembers}
-          joined={joinedVoiceRoomId === activeVoiceChannel?.id || isVoiceConnecting}
+          joined={joinedVoiceRoomId === activeVoiceChannel?.id}
+          muted={isMuted}
+          connecting={isVoiceConnecting}
           participants={activeMembers.length}
           onToggleJoin={handleVoiceToggle}
+          onToggleMute={handleToggleMute}
         />
       </section>
 
