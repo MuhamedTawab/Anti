@@ -1,7 +1,7 @@
 import clsx from "clsx";
-import { Hash, Headphones, Shield, Sparkles } from "lucide-react";
+import { Hash, Headphones, Shield, Sparkles, Users } from "lucide-react";
 
-import type { Channel, Server } from "@/lib/types";
+import type { Channel, Member, Server } from "@/lib/types";
 
 function ChannelRow({
   channel,
@@ -44,12 +44,14 @@ export function ChannelList({
   server,
   activeChannelId,
   activeVoiceChannelId,
+  onlineMembers,
   onTextSelect,
   onVoiceSelect
 }: {
   server: Server;
   activeChannelId: string;
   activeVoiceChannelId: string;
+  onlineMembers: Member[];
   onTextSelect: (channelId: string) => void;
   onVoiceSelect: (channelId: string) => void;
 }) {
@@ -100,6 +102,39 @@ export function ChannelList({
             onClick={onVoiceSelect}
           />
         ))}
+      </div>
+
+      <div className="mt-6">
+        <div className="mb-3 flex items-center gap-2 px-2 text-xs uppercase tracking-[0.28em] text-white/35">
+          <Users size={13} />
+          <span>Online</span>
+        </div>
+        <div className="space-y-2">
+          {onlineMembers.length ? (
+            onlineMembers.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/15 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-white/5 text-xs font-semibold text-white">
+                    {member.name.slice(0, 2).toUpperCase()}
+                    <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-panel bg-sea" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{member.name}</p>
+                    <p className="text-xs text-white/40">{member.role}</p>
+                  </div>
+                </div>
+                <span className="text-[10px] uppercase tracking-[0.22em] text-sea">online</span>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-4 text-sm text-white/45">
+              No members online yet.
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

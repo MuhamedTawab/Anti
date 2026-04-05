@@ -317,6 +317,14 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           status: "online" as const
         }))
     : [];
+  const onlineMembers = Object.values(presenceMembers)
+    .filter((member) => member.serverId === activeServer.id)
+    .map((member) => ({
+      id: member.id,
+      name: member.name,
+      role: member.roomId ? `In ${member.roomId}` : "Online",
+      status: "online" as const
+    }));
 
   function handleServerSelect(serverId: string) {
     const nextServer =
@@ -752,6 +760,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           server={activeServer}
           activeChannelId={activeTextChannel.id}
           activeVoiceChannelId={activeVoiceChannel?.id ?? ""}
+          onlineMembers={onlineMembers}
           onTextSelect={handleTextChannelSelect}
           onVoiceSelect={handleVoiceChannelSelect}
         />
