@@ -34,7 +34,31 @@ function formatIdentity(user: {
   };
 }
 
+function getHeaderIdentity(request: NextRequest): AuthIdentity | null {
+  const id = request.headers.get("x-nightlink-user-id");
+  const email = request.headers.get("x-nightlink-user-email");
+  const name = request.headers.get("x-nightlink-user-name");
+  const handle = request.headers.get("x-nightlink-user-handle");
+
+  if (!id || !email || !name || !handle) {
+    return null;
+  }
+
+  return {
+    id,
+    email,
+    name,
+    handle
+  };
+}
+
 export async function getAuthenticatedIdentity(request: NextRequest) {
+  const headerIdentity = getHeaderIdentity(request);
+
+  if (headerIdentity) {
+    return headerIdentity;
+  }
+
   if (!hasSupabasePublicEnv()) {
     return null;
   }

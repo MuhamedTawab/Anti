@@ -291,14 +291,18 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }));
 
     try {
-      const response = await fetch(`/api/channels/${activeTextChannel.id}/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ body })
-      });
+    const response = await fetch(`/api/channels/${activeTextChannel.id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "x-nightlink-user-id": currentUser.id,
+        "x-nightlink-user-email": currentUser.email,
+        "x-nightlink-user-name": currentUser.name,
+        "x-nightlink-user-handle": currentUser.handle
+      },
+      body: JSON.stringify({ body })
+    });
 
       const payload = (await response.json().catch(() => null)) as
         | { message?: Message; error?: string }
