@@ -318,6 +318,24 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setAuthMessage("Signed out.");
   }
 
+  if (!currentUser) {
+    return (
+      <AuthPanel
+        mode={authMode}
+        email={authEmail}
+        password={authPassword}
+        currentUser={currentUser}
+        loading={authLoading}
+        message={authMessage}
+        onModeChange={setAuthMode}
+        onEmailChange={setAuthEmail}
+        onPasswordChange={setAuthPassword}
+        onSubmit={handleAuthSubmit}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto flex max-w-[1800px] flex-col gap-5">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-white/[0.05] via-white/[0.025] to-transparent shadow-panel">

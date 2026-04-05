@@ -15,7 +15,7 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: "Anti",
-  description: "A web-first voice and chat platform for communities."
+  description: "A gated web-first voice and chat platform for squads and communities."
 };
 
 export default function RootLayout({

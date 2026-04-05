@@ -45,7 +45,7 @@ export function AuthPanel({
                 {currentUser.name}
               </p>
               <p className="text-sm text-white/45">
-                {currentUser.handle} · {currentUser.email}
+                {currentUser.handle} | {currentUser.email}
               </p>
             </div>
           </div>
@@ -71,74 +71,122 @@ export function AuthPanel({
   }
 
   return (
-    <section className="rounded-[28px] border border-white/10 bg-panel/90 px-6 py-5 shadow-panel">
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="mb-2 text-xs uppercase tracking-[0.35em] text-ember/80">Pilot Access</p>
-          <h2 className="font-display text-2xl uppercase tracking-[0.08em] text-white">
-            Sign In To Send Messages
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">
-            Reading works for everyone. Posting now uses a real Supabase user, so your name stays attached
-            to your messages.
-          </p>
-        </div>
-        <div className="flex gap-2 rounded-2xl border border-white/10 bg-black/20 p-1">
-          <button
-            onClick={() => onModeChange("signin")}
-            className={`rounded-xl px-4 py-2 text-sm transition ${
-              mode === "signin" ? "bg-ember text-white" : "text-white/55 hover:text-white"
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => onModeChange("signup")}
-            className={`rounded-xl px-4 py-2 text-sm transition ${
-              mode === "signup" ? "bg-ember text-white" : "text-white/55 hover:text-white"
-            }`}
-          >
-            Create Account
-          </button>
-        </div>
-      </div>
+    <main className="min-h-screen px-4 py-4 text-white lg:px-6 lg:py-6">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1480px] gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+        <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-gradient-to-br from-[#14060b] via-[#090b12] to-[#06141a] p-8 shadow-panel lg:p-12">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,59,95,0.20),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(123,246,255,0.12),transparent_24%)]" />
+          <div className="relative flex h-full flex-col justify-between">
+            <div>
+              <p className="mb-4 text-xs uppercase tracking-[0.45em] text-ember/80">
+                Web Voice Command Center
+              </p>
+              <h1 className="max-w-xl font-display text-5xl uppercase leading-[0.92] tracking-[0.08em] text-white lg:text-7xl">
+                Enter The Squad Link.
+              </h1>
+              <p className="mt-5 max-w-xl text-sm leading-7 text-white/55 lg:text-base">
+                Private chat and voice for crews, guilds, and late-night teams. Sign in before you
+                touch the board.
+              </p>
+            </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-        <input
-          type="email"
-          value={email}
-          onChange={(event) => onEmailChange(event.target.value)}
-          placeholder="Email"
-          className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => onPasswordChange(event.target.value)}
-          placeholder="Password"
-          className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onSubmit();
-            }
-          }}
-        />
-        <button
-          onClick={onSubmit}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ember px-5 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
-        >
-          {loading ? <LoaderCircle size={16} className="animate-spin" /> : null}
-          {mode === "signin" ? "Sign In" : "Create"}
-        </button>
-      </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+                <p className="mb-2 text-xs uppercase tracking-[0.28em] text-white/35">Access</p>
+                <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">Locked</p>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                  No channels, messages, or rooms are shown until you sign in.
+                </p>
+              </div>
+              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+                <p className="mb-2 text-xs uppercase tracking-[0.28em] text-white/35">Identity</p>
+                <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">Real</p>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                  Messages carry your actual account handle instead of a fake local user.
+                </p>
+              </div>
+              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+                <p className="mb-2 text-xs uppercase tracking-[0.28em] text-white/35">Stack</p>
+                <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">Free</p>
+                <p className="mt-2 text-sm leading-6 text-white/55">
+                  Running on Vercel plus Supabase so you can keep building without paying yet.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      {message ? (
-        <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-          {message}
-        </div>
-      ) : null}
-    </section>
+        <section className="flex items-center">
+          <div className="w-full rounded-[36px] border border-white/10 bg-panel/95 p-7 shadow-panel lg:p-9">
+            <div className="mb-6 flex gap-2 rounded-2xl border border-white/10 bg-black/20 p-1">
+              <button
+                onClick={() => onModeChange("signin")}
+                className={`rounded-xl px-4 py-2 text-sm transition ${
+                  mode === "signin" ? "bg-ember text-white" : "text-white/55 hover:text-white"
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => onModeChange("signup")}
+                className={`rounded-xl px-4 py-2 text-sm transition ${
+                  mode === "signup" ? "bg-ember text-white" : "text-white/55 hover:text-white"
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="mb-2 text-xs uppercase tracking-[0.35em] text-ember/80">Pilot Access</p>
+              <h2 className="font-display text-3xl uppercase tracking-[0.08em] text-white">
+                {mode === "signin" ? "Sign In" : "Create Account"}
+              </h2>
+              <p className="mt-3 max-w-md text-sm leading-6 text-white/50">
+                {mode === "signin"
+                  ? "Use your account to unlock servers, channels, and persistent messages."
+                  : "Create a free account first. After that, the whole app opens up."}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => onEmailChange(event.target.value)}
+                placeholder="Email"
+                className="w-full rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => onPasswordChange(event.target.value)}
+                placeholder="Password"
+                className="w-full rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    onSubmit();
+                  }
+                }}
+              />
+              <button
+                onClick={onSubmit}
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ember px-5 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
+              >
+                {loading ? <LoaderCircle size={16} className="animate-spin" /> : null}
+                {mode === "signin" ? "Enter App" : "Create And Enter"}
+              </button>
+            </div>
+
+            {message ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
+                {message}
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
