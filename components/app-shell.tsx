@@ -39,6 +39,14 @@ function mapUser(user: User | null): AuthIdentity | null {
   };
 }
 
+function mergeMessage(messages: Message[], nextMessage: Message) {
+  if (messages.some((message) => message.id === nextMessage.id)) {
+    return messages;
+  }
+
+  return [...messages, nextMessage];
+}
+
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [data, setData] = useState(initialData);
@@ -119,6 +127,56 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase || !currentUser) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`messages:${activeTextChannelId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `channel_id=eq.${activeTextChannelId}`
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            channel_id: string;
+            author: string;
+            handle: string;
+            body: string;
+            timestamp: string;
+          };
+
+          const nextMessage: Message = {
+            id: row.id,
+            channelId: row.channel_id,
+            author: row.author,
+            handle: row.handle,
+            body: row.body,
+            timestamp: row.timestamp
+          };
+
+          setData((current) => ({
+            ...current,
+            messages: {
+              ...current.messages,
+              [activeTextChannelId]: mergeMessage(current.messages[activeTextChannelId] ?? [], nextMessage)
+            }
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [activeTextChannelId, currentUser, supabase]);
 
   const activeServer = useMemo(
     () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0],
@@ -223,7 +281,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       ...current,
       messages: {
         ...current.messages,
-        [activeTextChannel.id]: [...(current.messages[activeTextChannel.id] ?? []), payload.message]
+        [activeTextChannel.id]: mergeMessage(current.messages[activeTextChannel.id] ?? [], payload.message)
       }
     }));
   }
