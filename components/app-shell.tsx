@@ -55,6 +55,7 @@ function replaceMessage(messages: Message[], previousId: string, nextMessage: Me
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
@@ -76,6 +77,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [presenceMembers, setPresenceMembers] = useState<Record<string, AuthIdentity & { roomId: string | null; serverId: string }>>({});
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -206,6 +208,67 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   }, [activeTextChannelId, currentUser, supabase]);
 
   useEffect(() => {
+    if (!supabase || !currentUser) {
+      return;
+    }
+
+    const channel = supabase.channel("nightlink-presence", {
+      config: {
+        presence: {
+          key: currentUser.id
+        }
+      }
+    });
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState<{
+          id: string;
+          email: string;
+          name: string;
+          handle: string;
+          roomId: string | null;
+          serverId: string;
+        }>();
+        const flattened: Record<
+          string,
+          AuthIdentity & { roomId: string | null; serverId: string }
+        > = {};
+
+        Object.values(state).forEach((entries) => {
+          entries.forEach((entry) => {
+            flattened[entry.id] = entry;
+          });
+        });
+
+        setPresenceMembers(flattened);
+      })
+      .subscribe(async (status) => {
+        if (status !== "SUBSCRIBED") {
+          return;
+        }
+
+        await channel.track({
+          id: currentUser.id,
+          email: currentUser.email,
+          name: currentUser.name,
+          handle: currentUser.handle,
+          roomId: joinedVoiceRoomId,
+          serverId: activeServerId
+        });
+      });
+
+    presenceChannelRef.current = channel;
+
+    return () => {
+      if (presenceChannelRef.current?.topic === channel.topic) {
+        presenceChannelRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [activeServerId, currentUser, joinedVoiceRoomId, supabase]);
+
+  useEffect(() => {
     if (!currentUser) {
       return;
     }
@@ -241,7 +304,19 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   );
 
   const activeMessages = data.messages[activeTextChannel.id] ?? [];
-  const activeMembers = activeVoiceChannel ? data.members[activeVoiceChannel.id] ?? [] : [];
+  const activeMembers = activeVoiceChannel
+    ? Object.values(presenceMembers)
+        .filter(
+          (member) =>
+            member.serverId === activeServer.id && member.roomId === activeVoiceChannel.id
+        )
+        .map((member) => ({
+          id: member.id,
+          name: member.name,
+          role: "Live member",
+          status: "online" as const
+        }))
+    : [];
 
   function handleServerSelect(serverId: string) {
     const nextServer =
@@ -393,6 +468,16 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
     if (joinedVoiceRoomId === activeVoiceChannel.id) {
       setJoinedVoiceRoomId(null);
+      if (presenceChannelRef.current && currentUser) {
+        await presenceChannelRef.current.track({
+          id: currentUser.id,
+          email: currentUser.email,
+          name: currentUser.name,
+          handle: currentUser.handle,
+          roomId: null,
+          serverId: activeServerId
+        });
+      }
       setVoiceParticipants(null);
       return;
     }
@@ -415,6 +500,16 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     const payload = (await response.json()) as { roomId: string; participants: number };
     setJoinedVoiceRoomId(payload.roomId);
     setVoiceParticipants(payload.participants);
+    if (presenceChannelRef.current && currentUser) {
+      await presenceChannelRef.current.track({
+        id: currentUser.id,
+        email: currentUser.email,
+        name: currentUser.name,
+        handle: currentUser.handle,
+        roomId: payload.roomId,
+        serverId: activeServerId
+      });
+    }
   }
 
   async function handleAuthSubmit() {
@@ -573,6 +668,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
 
     await supabase.auth.signOut();
+    setPresenceMembers({});
     setAuthMode("signin");
     setAuthMessage("Signed out.");
   }
@@ -672,7 +768,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           roomName={activeVoiceChannel?.name ?? "No Room"}
           members={activeMembers}
           joined={joinedVoiceRoomId === activeVoiceChannel?.id}
-          participants={voiceParticipants ?? activeMembers.length}
+          participants={activeMembers.length}
           onToggleJoin={handleVoiceToggle}
         />
       </section>

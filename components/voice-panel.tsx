@@ -72,31 +72,37 @@ export function VoicePanel({
       </div>
 
       <div className="space-y-3">
-        {members.map((member) => (
-          <div
-            key={member.id}
-            className="flex items-center justify-between rounded-2xl border border-white/10 bg-steel px-3 py-3"
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm">
-                {member.name.slice(0, 2).toUpperCase()}
-                <span
-                  className={clsx(
-                    "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-panel",
-                    statusStyles[member.status]
-                  )}
-                />
+        {members.length ? (
+          members.map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center justify-between rounded-2xl border border-white/10 bg-steel px-3 py-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm">
+                  {member.name.slice(0, 2).toUpperCase()}
+                  <span
+                    className={clsx(
+                      "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-panel",
+                      statusStyles[member.status]
+                    )}
+                  />
+                </div>
+                <div>
+                  <p className="font-medium">{member.name}</p>
+                  <p className="text-sm text-white/45">{member.role}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">{member.name}</p>
-                <p className="text-sm text-white/45">{member.role}</p>
-              </div>
+              <span className="text-xs uppercase tracking-[0.24em] text-white/35">
+                {member.status}
+              </span>
             </div>
-            <span className="text-xs uppercase tracking-[0.24em] text-white/35">
-              {member.status}
-            </span>
+          ))
+        ) : (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-5 text-sm text-white/45">
+            No one is in this room yet.
           </div>
-        ))}
+        )}
       </div>
     </aside>
   );

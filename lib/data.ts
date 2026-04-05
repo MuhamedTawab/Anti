@@ -86,16 +86,6 @@ export async function getBootstrap(): Promise<BootstrapPayload> {
     .in("channel_id", channelIds)
     .order("created_at", { ascending: true });
 
-  const { data: memberRows } = await supabase
-    .from("voice_room_members")
-    .select("id,room_id,name,role,status")
-    .in(
-      "room_id",
-      servers.flatMap((server) =>
-        server.channels.filter((channel) => channel.kind === "voice").map((channel) => channel.id)
-      )
-    );
-
   const messages: Record<string, Message[]> = {};
   const members: Record<string, Member[]> = {};
 
@@ -120,19 +110,10 @@ export async function getBootstrap(): Promise<BootstrapPayload> {
     messages[row.channel_id].push(message);
   }
 
-  for (const row of memberRows ?? []) {
-    const member: Member = {
-      id: row.id,
-      name: row.name,
-      role: row.role,
-      status: row.status
-    };
-
-    if (!members[row.room_id]) {
-      members[row.room_id] = [];
+  for (const server of servers) {
+    for (const channel of server.channels.filter((item) => item.kind === "voice")) {
+      members[channel.id] = [];
     }
-
-    members[row.room_id].push(member);
   }
 
   return {
@@ -219,26 +200,5 @@ export async function addMessage(
 }
 
 export async function getVoiceMembers(roomId: string): Promise<Member[]> {
-  const supabase = getSupabaseServerClient();
-
-  if (!supabase) {
-    return getMemoryVoiceMembers(roomId);
-  }
-
-  const { data, error } = await supabase
-    .from("voice_room_members")
-    .select("id,name,role,status")
-    .eq("room_id", roomId)
-    .order("created_at", { ascending: true });
-
-  if (error || !data) {
-    return getMemoryVoiceMembers(roomId);
-  }
-
-  return data.map((row) => ({
-    id: row.id,
-    name: row.name,
-    role: row.role,
-    status: row.status
-  }));
+  return getMemoryVoiceMembers(roomId);
 }

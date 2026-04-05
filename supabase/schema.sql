@@ -65,24 +65,7 @@ set server_id = excluded.server_id,
     members = excluded.members,
     sort_order = excluded.sort_order;
 
-insert into messages (channel_id, author, handle, body, timestamp) values
-  ('welcome', 'Maya', '@maya', 'Welcome in. Keep comms tight, keep channels clean, and jump into voice when the squad is active.', '09:02'),
-  ('build-log', 'Maya', '@maya', 'We should treat voice rooms like lightweight spaces, not meetings. Join fast, speak fast, leave fast.', '09:12'),
-  ('build-log', 'Idris', '@idris', 'Chat history is flowing. Next step is role-aware permissions and WebRTC signaling hooks for voice channels.', '09:16'),
-  ('build-log', 'Nora', '@nora', 'The UI should make voice feel alive even before someone joins. Speaking activity, room counts, and quick join need to be obvious.', '09:21'),
-  ('ideas', 'Sami', '@sami', 'Push-to-talk and game-party presence can become signature features once the chat base is stable.', '10:03'),
-  ('moodboard', 'Nora', '@nora', 'Keep the palette nearly black, then let the red and cyan accents do the heavy lifting.', '11:08'),
-  ('feedback', 'Idris', '@idris', 'Minimal is good, but action states still need to feel strong enough for a gaming audience.', '11:17')
-on conflict do nothing;
+delete from messages
+where handle in ('@maya', '@idris', '@nora', '@sami', '@rin', '@kareem', '@lina', '@tariq', '@ash');
 
-insert into voice_room_members (room_id, name, role, status) values
-  ('war-room', 'Maya', 'Founder', 'online'),
-  ('war-room', 'Idris', 'Platform', 'focus'),
-  ('war-room', 'Nora', 'Design', 'online'),
-  ('war-room', 'Sami', 'Moderation', 'idle'),
-  ('late-night', 'Rin', 'Night Ops', 'online'),
-  ('late-night', 'Kareem', 'Builder', 'focus'),
-  ('listening-room', 'Lina', 'Audio', 'online'),
-  ('listening-room', 'Tariq', 'UI', 'idle'),
-  ('listening-room', 'Ash', 'Mods', 'online')
-on conflict do nothing;
+delete from voice_room_members;

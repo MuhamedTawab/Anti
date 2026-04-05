@@ -28,90 +28,17 @@ const serverSeed: Server[] = [
 ];
 
 const messageSeed: Record<string, Message[]> = {
-  welcome: [
-    {
-      id: "welcome-1",
-      channelId: "welcome",
-      author: "Maya",
-      handle: "@maya",
-      body: "Welcome in. Keep comms tight, keep channels clean, and jump into voice when the squad is active.",
-      timestamp: "09:02"
-    }
-  ],
-  "build-log": [
-    {
-      id: "build-log-1",
-      channelId: "build-log",
-      author: "Maya",
-      handle: "@maya",
-      body: "We should treat voice rooms like lightweight spaces, not meetings. Join fast, speak fast, leave fast.",
-      timestamp: "09:12"
-    },
-    {
-      id: "build-log-2",
-      channelId: "build-log",
-      author: "Idris",
-      handle: "@idris",
-      body: "Chat history is flowing. Next step is role-aware permissions and WebRTC signaling hooks for voice channels.",
-      timestamp: "09:16"
-    },
-    {
-      id: "build-log-3",
-      channelId: "build-log",
-      author: "Nora",
-      handle: "@nora",
-      body: "The UI should make voice feel alive even before someone joins. Speaking activity, room counts, and quick join need to be obvious.",
-      timestamp: "09:21"
-    }
-  ],
-  ideas: [
-    {
-      id: "ideas-1",
-      channelId: "ideas",
-      author: "Sami",
-      handle: "@sami",
-      body: "Push-to-talk and game-party presence can become signature features once the chat base is stable.",
-      timestamp: "10:03"
-    }
-  ],
-  moodboard: [
-    {
-      id: "moodboard-1",
-      channelId: "moodboard",
-      author: "Nora",
-      handle: "@nora",
-      body: "Keep the palette nearly black, then let the red and cyan accents do the heavy lifting.",
-      timestamp: "11:08"
-    }
-  ],
-  feedback: [
-    {
-      id: "feedback-1",
-      channelId: "feedback",
-      author: "Idris",
-      handle: "@idris",
-      body: "Minimal is good, but action states still need to feel strong enough for a gaming audience.",
-      timestamp: "11:17"
-    }
-  ]
+  welcome: [],
+  "build-log": [],
+  ideas: [],
+  moodboard: [],
+  feedback: []
 };
 
 const memberSeed: Record<string, Member[]> = {
-  "war-room": [
-    { id: "u1", name: "Maya", role: "Founder", status: "online" },
-    { id: "u2", name: "Idris", role: "Platform", status: "focus" },
-    { id: "u3", name: "Nora", role: "Design", status: "online" },
-    { id: "u4", name: "Sami", role: "Moderation", status: "idle" }
-  ],
-  "late-night": [
-    { id: "u5", name: "Rin", role: "Night Ops", status: "online" },
-    { id: "u6", name: "Kareem", role: "Builder", status: "focus" }
-  ],
-  "listening-room": [
-    { id: "u7", name: "Lina", role: "Audio", status: "online" },
-    { id: "u8", name: "Tariq", role: "UI", status: "idle" },
-    { id: "u9", name: "Ash", role: "Mods", status: "online" }
-  ]
+  "war-room": [],
+  "late-night": [],
+  "listening-room": []
 };
 
 const store = {
