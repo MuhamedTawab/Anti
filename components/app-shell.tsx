@@ -47,6 +47,11 @@ function mergeMessage(messages: Message[], nextMessage: Message) {
   return [...messages, nextMessage];
 }
 
+function replaceMessage(messages: Message[], previousId: string, nextMessage: Message) {
+  const filtered = messages.filter((message) => message.id !== previousId);
+  return mergeMessage(filtered, nextMessage);
+}
+
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [data, setData] = useState(initialData);
@@ -69,6 +74,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [currentUser, setCurrentUser] = useState<AuthIdentity | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -257,33 +263,78 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       return;
     }
 
-    setComposerValue("");
-    setError(null);
-
-    const response = await fetch(`/api/channels/${activeTextChannel.id}/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-      },
-      body: JSON.stringify({ body })
-    });
-
-    if (!response.ok) {
-      setComposerValue(body);
-      setError("Message failed to send.");
+    if (!accessToken) {
+      setError("Your session is not ready yet. Try again in a second.");
       return;
     }
 
-    const payload = (await response.json()) as { message: Message };
+    const optimisticId = `optimistic-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: optimisticId,
+      channelId: activeTextChannel.id,
+      author: currentUser.name,
+      handle: currentUser.handle,
+      body,
+      timestamp: "sending...",
+      optimistic: true
+    };
 
+    setComposerValue("");
+    setError(null);
+    setIsSending(true);
     setData((current) => ({
       ...current,
       messages: {
         ...current.messages,
-        [activeTextChannel.id]: mergeMessage(current.messages[activeTextChannel.id] ?? [], payload.message)
+        [activeTextChannel.id]: mergeMessage(current.messages[activeTextChannel.id] ?? [], optimisticMessage)
       }
     }));
+
+    try {
+      const response = await fetch(`/api/channels/${activeTextChannel.id}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ body })
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: Message; error?: string }
+        | null;
+
+      const nextMessage = payload?.message;
+
+      if (!response.ok || !nextMessage) {
+        setComposerValue(body);
+        setError(payload?.error ?? "Message failed to send.");
+        setData((current) => ({
+          ...current,
+          messages: {
+            ...current.messages,
+            [activeTextChannel.id]: (current.messages[activeTextChannel.id] ?? []).filter(
+              (message) => message.id !== optimisticId
+            )
+          }
+        }));
+        return;
+      }
+
+      setData((current) => ({
+        ...current,
+        messages: {
+          ...current.messages,
+          [activeTextChannel.id]: replaceMessage(
+            current.messages[activeTextChannel.id] ?? [],
+            optimisticId,
+            nextMessage
+          )
+        }
+      }));
+    } finally {
+      setIsSending(false);
+    }
   }
 
   async function handleVoiceToggle() {
@@ -563,7 +614,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           channelName={activeTextChannel.name}
           items={activeMessages}
           composerValue={composerValue}
-          pending={isPending}
+          pending={isPending || isSending}
           canSend={Boolean(currentUser)}
           onComposerChange={setComposerValue}
           onSend={handleSendMessage}

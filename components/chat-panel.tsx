@@ -38,7 +38,12 @@ export function ChatPanel({
 
       <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
         {items.map((message) => (
-          <article key={message.id} className="flex gap-4 rounded-[26px] border border-white/8 bg-black/20 p-4">
+          <article
+            key={message.id}
+            className={`flex gap-4 rounded-[26px] border border-white/8 p-4 ${
+              message.optimistic ? "bg-ember/10 opacity-80" : "bg-black/20"
+            }`}
+          >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-ember to-sea font-display text-sm font-bold text-ink">
               {message.author.slice(0, 2).toUpperCase()}
             </div>
@@ -47,6 +52,9 @@ export function ChatPanel({
                 <span className="font-semibold">{message.author}</span>
                 <span className="text-sm text-white/32">{message.handle}</span>
                 <span className="text-sm text-white/32">{message.timestamp}</span>
+                {message.optimistic ? (
+                  <span className="text-xs uppercase tracking-[0.18em] text-ember/90">sending</span>
+                ) : null}
               </div>
               <p className="max-w-3xl text-[15px] leading-7 text-white/74">{message.body}</p>
             </div>

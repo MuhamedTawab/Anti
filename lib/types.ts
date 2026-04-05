@@ -9,6 +9,7 @@ export interface Message {
   handle: string;
   body: string;
   timestamp: string;
+  optimistic?: boolean;
 }
 
 export interface Channel {
