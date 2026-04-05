@@ -69,6 +69,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
   const remoteAudioRef = useRef<Record<string, HTMLAudioElement>>({});
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const isMutedRef = useRef(false);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
@@ -118,6 +120,81 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       "x-nightlink-user-handle": currentUser.handle
     };
   }
+
+  function playUiSound(kind: "send" | "receive" | "success" | "error" | "join" | "leave") {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as typeof window & {
+      webkitAudioContext?: typeof AudioContext;
+    }).webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return;
+    }
+
+    const context = audioContextRef.current ?? new AudioContextClass();
+    audioContextRef.current = context;
+
+    if (context.state === "suspended") {
+      void context.resume().catch(() => null);
+    }
+
+    const presets: Record<typeof kind, Array<{ frequency: number; duration: number; volume: number }>> = {
+      send: [
+        { frequency: 740, duration: 0.05, volume: 0.018 },
+        { frequency: 880, duration: 0.07, volume: 0.014 }
+      ],
+      receive: [
+        { frequency: 520, duration: 0.05, volume: 0.018 },
+        { frequency: 660, duration: 0.08, volume: 0.015 }
+      ],
+      success: [
+        { frequency: 620, duration: 0.06, volume: 0.018 },
+        { frequency: 780, duration: 0.06, volume: 0.016 },
+        { frequency: 930, duration: 0.08, volume: 0.014 }
+      ],
+      error: [
+        { frequency: 290, duration: 0.08, volume: 0.02 },
+        { frequency: 220, duration: 0.1, volume: 0.018 }
+      ],
+      join: [
+        { frequency: 440, duration: 0.05, volume: 0.018 },
+        { frequency: 660, duration: 0.06, volume: 0.015 },
+        { frequency: 880, duration: 0.08, volume: 0.012 }
+      ],
+      leave: [
+        { frequency: 880, duration: 0.05, volume: 0.014 },
+        { frequency: 660, duration: 0.06, volume: 0.015 },
+        { frequency: 440, duration: 0.08, volume: 0.018 }
+      ]
+    };
+
+    let startAt = context.currentTime;
+
+    presets[kind].forEach((tone) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(tone.frequency, startAt);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(tone.volume, startAt + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + tone.duration);
+
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + tone.duration);
+
+      startAt += tone.duration * 0.75;
+    });
+  }
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,6 +349,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
         if (!nextMessage) {
           return;
+        }
+
+        if (nextMessage.author !== currentUser.name || nextMessage.handle !== currentUser.handle) {
+          playUiSound("receive");
         }
 
         setData((current) => ({
@@ -631,6 +712,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setVoiceParticipants(null);
     setIsVoiceConnecting(false);
     setIsMuted(false);
+    playUiSound("leave");
   }
 
   function createPeerConnection(remoteUserId: string) {
@@ -676,6 +758,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       const audio = new Audio();
       audio.autoplay = true;
+      audio.muted = isMutedRef.current;
       audio.srcObject = stream;
       remoteAudioRef.current[remoteUserId] = audio;
       void audio.play().catch(() => null);
@@ -881,9 +964,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       } else {
         void loadDirectMessages(activeTargetId);
       }
+      playUiSound("send");
     } catch (nextError) {
       setComposerValue(body);
       setError(nextError instanceof Error ? nextError.message : "Message failed to send.");
+      playUiSound("error");
       setData((current) => ({
         ...current,
         messages: {
@@ -937,10 +1022,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
     if (!response.ok) {
       setError(payload?.error ?? "Could not send friend request.");
+      playUiSound("error");
       return;
     }
 
     setFriendEmail("");
+    playUiSound("success");
     const socialResponse = await fetch("/api/social", {
       headers,
       cache: "no-store"
@@ -972,6 +1059,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
     if (!response.ok) {
       setError(payload?.error ?? "Could not update request.");
+      playUiSound("error");
       return;
     }
 
@@ -993,6 +1081,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           void loadDirectMessages(acceptedThread.id);
         }
       }
+
+      playUiSound("success");
     }
   }
 
@@ -1028,6 +1118,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       if (!response.ok) {
         setError("Voice room could not connect.");
+        playUiSound("error");
         cleanupVoiceSession();
         return;
       }
@@ -1046,8 +1137,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           serverId: activeServerId
         });
       }
+      playUiSound("join");
     } catch {
       setError("Microphone access failed or voice could not start.");
+      playUiSound("error");
       cleanupVoiceSession();
     } finally {
       setIsVoiceConnecting(false);
@@ -1068,6 +1161,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     });
 
     setIsMuted(shouldMute);
+    Object.values(remoteAudioRef.current).forEach((audio) => {
+      audio.muted = shouldMute;
+    });
   }
 
   async function handleAuthSubmit() {
@@ -1095,10 +1191,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
         if (resetError) {
           setAuthMessage(resetError.message);
+          playUiSound("error");
           return;
         }
 
         setAuthMessage("Reset link sent. Check your email inbox.");
+        playUiSound("success");
         return;
       }
 
@@ -1114,12 +1212,14 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
         if (updateError) {
           setAuthMessage(updateError.message);
+          playUiSound("error");
           return;
         }
 
         setAuthPassword("");
         setAuthMode("signin");
         setAuthMessage("Password changed. You can continue into Nightlink.");
+        playUiSound("success");
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
@@ -1132,11 +1232,13 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
         if (signInError) {
           setAuthMessage(signInError.message);
+          playUiSound("error");
           return;
         }
 
         setAuthPassword("");
         setAuthMessage("Signed in. Your next messages will use your account.");
+        playUiSound("success");
         return;
       }
 
@@ -1147,6 +1249,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       if (signUpError) {
         setAuthMessage(signUpError.message);
+        playUiSound("error");
         return;
       }
 
@@ -1157,6 +1260,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           ? "Account created and signed in."
           : "Account created. Check your email if confirmation is required, then sign in."
       );
+      playUiSound("success");
     } finally {
       setAuthLoading(false);
     }
@@ -1181,6 +1285,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       if (error) {
         setAuthMessage(error.message);
+        playUiSound("error");
       }
     } finally {
       setAuthLoading(false);
@@ -1197,6 +1302,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
     if (!nextPassword) {
       setAuthMessage("Enter a new password first.");
+      playUiSound("error");
       return;
     }
 
@@ -1210,11 +1316,13 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       if (updateError) {
         setAuthMessage(updateError.message);
+        playUiSound("error");
         return;
       }
 
       setChangePasswordValue("");
       setAuthMessage("Password updated.");
+      playUiSound("success");
     } finally {
       setAuthLoading(false);
     }
@@ -1236,6 +1344,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     });
     setAuthMode("signin");
     setAuthMessage("Signed out.");
+    playUiSound("leave");
   }
 
   useEffect(() => {
