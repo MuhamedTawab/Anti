@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import type { User } from "@supabase/supabase-js";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import type { RealtimeChannel, User } from "@supabase/supabase-js";
 
 import { ChannelList } from "@/components/channel-list";
 import { ChatPanel } from "@/components/chat-panel";
@@ -54,6 +54,7 @@ function replaceMessage(messages: Message[], previousId: string, nextMessage: Me
 
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
@@ -140,7 +141,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
 
     const channel = supabase
-      .channel(`messages:${activeTextChannelId}`)
+      .channel(`nightlink-room:${activeTextChannelId}`)
       .on(
         "postgres_changes",
         {
@@ -177,9 +178,29 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           }));
         }
       )
+      .on("broadcast", { event: "message" }, (payload) => {
+        const nextMessage = (payload.payload as { message?: Message }).message;
+
+        if (!nextMessage) {
+          return;
+        }
+
+        setData((current) => ({
+          ...current,
+          messages: {
+            ...current.messages,
+            [activeTextChannelId]: mergeMessage(current.messages[activeTextChannelId] ?? [], nextMessage)
+          }
+        }));
+      })
       .subscribe();
 
+    realtimeChannelRef.current = channel;
+
     return () => {
+      if (realtimeChannelRef.current?.topic === channel.topic) {
+        realtimeChannelRef.current = null;
+      }
       void supabase.removeChannel(channel);
     };
   }, [activeTextChannelId, currentUser, supabase]);
@@ -350,6 +371,14 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           )
         }
       }));
+
+      await realtimeChannelRef.current?.send({
+        type: "broadcast",
+        event: "message",
+        payload: {
+          message: nextMessage
+        }
+      });
 
       void loadChannelMessages(activeTextChannel.id);
     } finally {
