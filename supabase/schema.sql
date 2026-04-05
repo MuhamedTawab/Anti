@@ -39,6 +39,61 @@ create table if not exists voice_room_members (
   created_at timestamptz not null default now()
 );
 
+create table if not exists profiles (
+  id uuid primary key,
+  email text not null unique,
+  name text not null,
+  handle text not null unique,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references profiles(id) on delete cascade,
+  receiver_id uuid not null references profiles(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'declined')),
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists friend_requests_unique_pair
+on friend_requests (sender_id, receiver_id);
+
+create table if not exists friendships (
+  id uuid primary key default gen_random_uuid(),
+  user_a uuid not null references profiles(id) on delete cascade,
+  user_b uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists friendships_unique_pair
+on friendships (least(user_a, user_b), greatest(user_a, user_b));
+
+create table if not exists direct_threads (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists direct_thread_members (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references direct_threads(id) on delete cascade,
+  profile_id uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists direct_thread_members_unique
+on direct_thread_members (thread_id, profile_id);
+
+create table if not exists direct_messages (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references direct_threads(id) on delete cascade,
+  author_id uuid not null references profiles(id) on delete cascade,
+  author text not null,
+  handle text not null,
+  body text not null,
+  timestamp text not null,
+  created_at timestamptz not null default now()
+);
+
 insert into servers (id, name, initials, accent, sort_order) values
   ('hq', 'Anti HQ', 'AH', 'from-[#ff3b5f] to-[#ff8a5b]', 1),
   ('design', 'Signal Lab', 'SL', 'from-[#7bf6ff] to-[#6aa9ff]', 2)

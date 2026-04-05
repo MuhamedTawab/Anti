@@ -4,6 +4,7 @@ import type { Message } from "@/lib/types";
 
 export function ChatPanel({
   channelName,
+  channelPrefix,
   items,
   composerValue,
   pending,
@@ -13,6 +14,7 @@ export function ChatPanel({
   onSend
 }: {
   channelName: string;
+  channelPrefix: "#" | "@";
   items: Message[];
   composerValue: string;
   pending: boolean;
@@ -25,7 +27,10 @@ export function ChatPanel({
     <section className="flex min-w-0 flex-1 flex-col rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
         <div>
-          <p className="font-display text-2xl uppercase tracking-[0.08em]">#{channelName}</p>
+          <p className="font-display text-2xl uppercase tracking-[0.08em]">
+            {channelPrefix}
+            {channelName}
+          </p>
           <p className="text-sm text-white/42">Realtime drops, callouts, and squad planning.</p>
         </div>
         <div className="flex items-center gap-3 text-white/65">
@@ -77,7 +82,7 @@ export function ChatPanel({
           </button>
           <input
             className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35"
-            placeholder={canSend ? `Transmit to #${channelName}` : "Sign in to transmit"}
+            placeholder={canSend ? `Transmit to ${channelPrefix}${channelName}` : "Sign in to transmit"}
             value={composerValue}
             disabled={!canSend}
             onChange={(event) => onComposerChange(event.target.value)}

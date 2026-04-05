@@ -53,3 +53,34 @@ export interface AuthIdentity {
   name: string;
   handle: string;
 }
+
+export interface Friend {
+  id: string;
+  name: string;
+  handle: string;
+  email: string;
+  online: boolean;
+}
+
+export interface FriendRequest {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderHandle: string;
+  senderEmail: string;
+}
+
+export interface DirectThread {
+  id: string;
+  friendId: string;
+  friendName: string;
+  friendHandle: string;
+  lastMessage: string | null;
+}
+
+export interface SocialPayload {
+  friends: Friend[];
+  incomingRequests: FriendRequest[];
+  outgoingRequests: FriendRequest[];
+  directThreads: DirectThread[];
+}

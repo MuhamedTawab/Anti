@@ -1,4 +1,14 @@
-import type { AuthIdentity, BootstrapPayload, Member, Message, Server } from "@/lib/types";
+import type {
+  AuthIdentity,
+  BootstrapPayload,
+  DirectThread,
+  Friend,
+  FriendRequest,
+  Member,
+  Message,
+  Server,
+  SocialPayload
+} from "@/lib/types";
 
 const serverSeed: Server[] = [
   {
@@ -44,7 +54,12 @@ const memberSeed: Record<string, Member[]> = {
 const store = {
   servers: structuredClone(serverSeed),
   messages: structuredClone(messageSeed),
-  members: structuredClone(memberSeed)
+  members: structuredClone(memberSeed),
+  friends: [] as Friend[],
+  incomingRequests: [] as FriendRequest[],
+  outgoingRequests: [] as FriendRequest[],
+  directThreads: [] as DirectThread[],
+  directMessages: {} as Record<string, Message[]>
 };
 
 function formatTimestamp(date: Date) {
@@ -94,4 +109,53 @@ export function addMessage(
 
 export function getVoiceMembers(roomId: string): Member[] {
   return structuredClone(store.members[roomId] ?? []);
+}
+
+export function ensureProfile(identity: AuthIdentity) {
+  return identity;
+}
+
+export function getSocialData(): SocialPayload {
+  return structuredClone({
+    friends: store.friends,
+    incomingRequests: store.incomingRequests,
+    outgoingRequests: store.outgoingRequests,
+    directThreads: store.directThreads
+  });
+}
+
+export function sendFriendRequest(_identity: AuthIdentity, _email: string) {
+  return null;
+}
+
+export function respondToFriendRequest(_identity: AuthIdentity, _requestId: string, _action: "accept" | "decline") {
+  return null;
+}
+
+export function getDirectMessages(threadId: string) {
+  return structuredClone(store.directMessages[threadId] ?? []);
+}
+
+export function addDirectMessage(threadId: string, body: string, identity: AuthIdentity) {
+  const trimmed = body.trim();
+
+  if (!trimmed) {
+    throw new Error("Message body is required.");
+  }
+
+  const message: Message = {
+    id: `${threadId}-${Date.now()}`,
+    channelId: threadId,
+    author: identity.name,
+    handle: identity.handle,
+    body: trimmed,
+    timestamp: formatTimestamp(new Date())
+  };
+
+  if (!store.directMessages[threadId]) {
+    store.directMessages[threadId] = [];
+  }
+
+  store.directMessages[threadId].push(message);
+  return structuredClone(message);
 }
