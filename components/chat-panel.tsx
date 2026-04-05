@@ -7,6 +7,7 @@ export function ChatPanel({
   items,
   composerValue,
   pending,
+  canSend,
   onComposerChange,
   onSend
 }: {
@@ -14,6 +15,7 @@ export function ChatPanel({
   items: Message[];
   composerValue: string;
   pending: boolean;
+  canSend: boolean;
   onComposerChange: (value: string) => void;
   onSend: () => void;
 }) {
@@ -59,11 +61,12 @@ export function ChatPanel({
           </button>
           <input
             className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35"
-            placeholder={`Transmit to #${channelName}`}
+            placeholder={canSend ? `Transmit to #${channelName}` : "Sign in to transmit"}
             value={composerValue}
+            disabled={!canSend}
             onChange={(event) => onComposerChange(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter") {
+              if (event.key === "Enter" && canSend) {
                 event.preventDefault();
                 onSend();
               }
@@ -71,7 +74,7 @@ export function ChatPanel({
           />
           <button
             onClick={onSend}
-            disabled={pending}
+            disabled={pending || !canSend}
             className="rounded-2xl bg-ember p-3 text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <SendHorizontal size={17} />

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { addMessage, getMessages } from "@/lib/data";
+import { hasSupabaseEnv } from "@/lib/env";
+import { getAuthenticatedIdentity } from "@/lib/supabase/auth";
 
 export async function GET(
   _request: NextRequest,
@@ -19,6 +21,7 @@ export async function POST(
 ) {
   const { channelId } = await params;
   const body = (await request.json()) as { body?: string };
+  const identity = await getAuthenticatedIdentity(request);
 
   if (!body.body?.trim()) {
     return NextResponse.json(
@@ -27,7 +30,14 @@ export async function POST(
     );
   }
 
-  const message = await addMessage(channelId, body.body);
+  if (hasSupabaseEnv() && !identity) {
+    return NextResponse.json(
+      { error: "Sign in to send messages." },
+      { status: 401 }
+    );
+  }
+
+  const message = await addMessage(channelId, body.body, identity ?? undefined);
 
   return NextResponse.json({ message }, { status: 201 });
 }

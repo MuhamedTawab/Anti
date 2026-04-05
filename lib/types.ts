@@ -45,3 +45,10 @@ export interface BootstrapPayload {
   messages: Record<string, Message[]>;
   members: Record<string, Member[]>;
 }
+
+export interface AuthIdentity {
+  id: string;
+  email: string;
+  name: string;
+  handle: string;
+}

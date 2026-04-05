@@ -4,7 +4,7 @@ import {
   getMessages as getMemoryMessages,
   getVoiceMembers as getMemoryVoiceMembers
 } from "@/lib/store";
-import type { BootstrapPayload, Member, Message, Server } from "@/lib/types";
+import type { AuthIdentity, BootstrapPayload, Member, Message, Server } from "@/lib/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 function normalizeServers(
@@ -169,11 +169,15 @@ export async function getMessages(channelId: string): Promise<Message[]> {
   }));
 }
 
-export async function addMessage(channelId: string, body: string): Promise<Message> {
+export async function addMessage(
+  channelId: string,
+  body: string,
+  identity?: AuthIdentity
+): Promise<Message> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    return addMemoryMessage(channelId, body);
+    return addMemoryMessage(channelId, body, identity);
   }
 
   const trimmed = body.trim();
@@ -192,8 +196,8 @@ export async function addMessage(channelId: string, body: string): Promise<Messa
     .from("messages")
     .insert({
       channel_id: channelId,
-      author: "You",
-      handle: "@you",
+      author: identity?.name ?? "You",
+      handle: identity?.handle ?? "@you",
       body: trimmed,
       timestamp
     })
@@ -201,7 +205,7 @@ export async function addMessage(channelId: string, body: string): Promise<Messa
     .single();
 
   if (error || !data) {
-    return addMemoryMessage(channelId, body);
+    return addMemoryMessage(channelId, body, identity);
   }
 
   return {

@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import type { User } from "@supabase/supabase-js";
 
 import { ChannelList } from "@/components/channel-list";
 import { ChatPanel } from "@/components/chat-panel";
 import { RoadmapCard } from "@/components/roadmap-card";
 import { ServerRail } from "@/components/server-rail";
 import { VoicePanel } from "@/components/voice-panel";
-import type { BootstrapPayload, Channel, Message, Server } from "@/lib/types";
+import { AuthPanel } from "@/components/auth-panel";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { AuthIdentity, BootstrapPayload, Channel, Message, Server } from "@/lib/types";
 
 function getInitialServer(data: BootstrapPayload): Server {
   return data.servers[0];
@@ -17,7 +20,27 @@ function getInitialTextChannel(server: Server): Channel {
   return server.channels.find((channel) => channel.kind === "text") ?? server.channels[0];
 }
 
+function mapUser(user: User | null): AuthIdentity | null {
+  if (!user?.email) {
+    return null;
+  }
+
+  const emailName = user.email.split("@")[0] || "pilot";
+  const preferredName =
+    (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+    (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+    emailName;
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: preferredName,
+    handle: `@${emailName.toLowerCase()}`
+  };
+}
+
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
+  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
@@ -30,6 +53,13 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthIdentity | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -50,6 +80,39 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) {
+        return;
+      }
+
+      setCurrentUser(mapUser(data.session?.user ?? null));
+      setAccessToken(data.session?.access_token ?? null);
+    });
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) {
+        return;
+      }
+
+      setCurrentUser(mapUser(session?.user ?? null));
+      setAccessToken(session?.access_token ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   const activeServer = useMemo(
     () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0],
@@ -126,7 +189,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   async function handleSendMessage() {
     const body = composerValue.trim();
 
-    if (!body) {
+    if (!body || !currentUser) {
       return;
     }
 
@@ -136,7 +199,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     const response = await fetch(`/api/channels/${activeTextChannel.id}/messages`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
       },
       body: JSON.stringify({ body })
     });
@@ -189,6 +253,71 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setVoiceParticipants(payload.participants);
   }
 
+  async function handleAuthSubmit() {
+    if (!supabase) {
+      setAuthMessage("Supabase is not configured for browser auth.");
+      return;
+    }
+
+    const email = authEmail.trim();
+    const password = authPassword.trim();
+
+    if (!email || !password) {
+      setAuthMessage("Email and password are required.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage(null);
+
+    try {
+      if (authMode === "signin") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (signInError) {
+          setAuthMessage(signInError.message);
+          return;
+        }
+
+        setAuthPassword("");
+        setAuthMessage("Signed in. Your next messages will use your account.");
+        return;
+      }
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (signUpError) {
+        setAuthMessage(signUpError.message);
+        return;
+      }
+
+      setAuthPassword("");
+      setAuthMode("signin");
+      setAuthMessage(
+        signUpData.session
+          ? "Account created and signed in."
+          : "Account created. Check your email if confirmation is required, then sign in."
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    if (!supabase) {
+      return;
+    }
+
+    await supabase.auth.signOut();
+    setAuthMessage("Signed out.");
+  }
+
   return (
     <div className="mx-auto flex max-w-[1800px] flex-col gap-5">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-white/[0.05] via-white/[0.025] to-transparent shadow-panel">
@@ -222,6 +351,20 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         </div>
       ) : null}
 
+      <AuthPanel
+        mode={authMode}
+        email={authEmail}
+        password={authPassword}
+        currentUser={currentUser}
+        loading={authLoading}
+        message={authMessage}
+        onModeChange={setAuthMode}
+        onEmailChange={setAuthEmail}
+        onPasswordChange={setAuthPassword}
+        onSubmit={handleAuthSubmit}
+        onSignOut={handleSignOut}
+      />
+
       <section className="grid gap-4 xl:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
         <ServerRail items={data.servers} activeId={activeServer.id} onSelect={handleServerSelect} />
         <ChannelList
@@ -236,6 +379,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           items={activeMessages}
           composerValue={composerValue}
           pending={isPending}
+          canSend={Boolean(currentUser)}
           onComposerChange={setComposerValue}
           onSend={handleSendMessage}
         />

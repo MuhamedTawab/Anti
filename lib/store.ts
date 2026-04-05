@@ -1,4 +1,4 @@
-import type { BootstrapPayload, Member, Message, Server } from "@/lib/types";
+import type { AuthIdentity, BootstrapPayload, Member, Message, Server } from "@/lib/types";
 
 const serverSeed: Server[] = [
   {
@@ -136,7 +136,11 @@ export function getMessages(channelId: string): Message[] {
   return structuredClone(store.messages[channelId] ?? []);
 }
 
-export function addMessage(channelId: string, body: string): Message {
+export function addMessage(
+  channelId: string,
+  body: string,
+  identity?: Pick<AuthIdentity, "name" | "handle">
+): Message {
   const trimmed = body.trim();
 
   if (!trimmed) {
@@ -146,8 +150,8 @@ export function addMessage(channelId: string, body: string): Message {
   const message: Message = {
     id: `${channelId}-${Date.now()}`,
     channelId,
-    author: "You",
-    handle: "@you",
+    author: identity?.name ?? "You",
+    handle: identity?.handle ?? "@you",
     body: trimmed,
     timestamp: formatTimestamp(new Date())
   };
