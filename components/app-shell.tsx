@@ -78,6 +78,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [authLoading, setAuthLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [presenceMembers, setPresenceMembers] = useState<Record<string, AuthIdentity & { roomId: string | null; serverId: string }>>({});
+  const [typingMembers, setTypingMembers] = useState<Record<string, { name: string; channelId: string; expiresAt: number }>>({});
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -195,6 +196,31 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           }
         }));
       })
+      .on("broadcast", { event: "typing" }, (payload) => {
+        const nextTyping = (payload.payload as {
+          userId?: string;
+          name?: string;
+          channelId?: string;
+        }) ?? { };
+
+        if (
+          !nextTyping.userId ||
+          !nextTyping.name ||
+          !nextTyping.channelId ||
+          nextTyping.userId === currentUser.id
+        ) {
+          return;
+        }
+
+        setTypingMembers((current) => ({
+          ...current,
+          [nextTyping.userId!]: {
+            name: nextTyping.name!,
+            channelId: nextTyping.channelId!,
+            expiresAt: Date.now() + 2200
+          }
+        }));
+      })
       .subscribe();
 
     realtimeChannelRef.current = channel;
@@ -206,6 +232,26 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       void supabase.removeChannel(channel);
     };
   }, [activeTextChannelId, currentUser, supabase]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setTypingMembers((current) => {
+        const next = Object.fromEntries(
+          Object.entries(current).filter(([, member]) => member.expiresAt > Date.now())
+        );
+
+        return Object.keys(next).length === Object.keys(current).length ? current : next;
+      });
+    }, 700);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [currentUser]);
 
   useEffect(() => {
     if (!supabase || !currentUser) {
@@ -325,6 +371,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       role: member.roomId ? `In ${member.roomId}` : "Online",
       status: "online" as const
     }));
+  const activeTypingMembers = Object.values(typingMembers)
+    .filter((member) => member.channelId === activeTextChannel.id && member.expiresAt > Date.now())
+    .map((member) => member.name);
 
   function handleServerSelect(serverId: string) {
     const nextServer =
@@ -467,6 +516,24 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     } finally {
       setIsSending(false);
     }
+  }
+
+  function handleComposerChange(value: string) {
+    setComposerValue(value);
+
+    if (!value.trim() || !currentUser || !realtimeChannelRef.current) {
+      return;
+    }
+
+    void realtimeChannelRef.current.send({
+      type: "broadcast",
+      event: "typing",
+      payload: {
+        userId: currentUser.id,
+        name: currentUser.name,
+        channelId: activeTextChannel.id
+      }
+    });
   }
 
   async function handleVoiceToggle() {
@@ -770,7 +837,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           composerValue={composerValue}
           pending={isPending || isSending}
           canSend={Boolean(currentUser)}
-          onComposerChange={setComposerValue}
+          typingMembers={activeTypingMembers}
+          onComposerChange={handleComposerChange}
           onSend={handleSendMessage}
         />
         <VoicePanel

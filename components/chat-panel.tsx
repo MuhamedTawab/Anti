@@ -8,6 +8,7 @@ export function ChatPanel({
   composerValue,
   pending,
   canSend,
+  typingMembers,
   onComposerChange,
   onSend
 }: {
@@ -16,6 +17,7 @@ export function ChatPanel({
   composerValue: string;
   pending: boolean;
   canSend: boolean;
+  typingMembers: string[];
   onComposerChange: (value: string) => void;
   onSend: () => void;
 }) {
@@ -61,6 +63,12 @@ export function ChatPanel({
           </article>
         ))}
       </div>
+
+      {typingMembers.length ? (
+        <div className="px-6 pb-3 text-sm text-sea">
+          {typingMembers.join(", ")} {typingMembers.length === 1 ? "is" : "are"} typing...
+        </div>
+      ) : null}
 
       <div className="border-t border-white/10 p-5">
         <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-steel px-4 py-3">
