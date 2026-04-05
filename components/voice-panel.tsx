@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Mic, MicOff, Radio, Users, Volume2 } from "lucide-react";
+import { Hand, Mic, MicOff, Radio, Users, Volume2 } from "lucide-react";
 
 import type { Member } from "@/lib/types";
 
@@ -15,18 +15,24 @@ export function VoicePanel({
   joined,
   muted,
   connecting,
+  pushToTalk,
+  transmitting,
   participants,
   onToggleJoin,
-  onToggleMute
+  onToggleMute,
+  onTogglePushToTalk
 }: {
   members: Member[];
   roomName: string;
   joined: boolean;
   muted: boolean;
   connecting: boolean;
+  pushToTalk: boolean;
+  transmitting: boolean;
   participants: number;
   onToggleJoin: () => void;
   onToggleMute: () => void;
+  onTogglePushToTalk: () => void;
 }) {
   return (
     <aside className="flex w-[320px] flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur">
@@ -83,6 +89,41 @@ export function VoicePanel({
           <MicOff size={16} />
           {muted ? "Muted" : "Mute"}
         </button>
+      </div>
+
+      <div className="mb-5 rounded-2xl border border-white/10 bg-black/15 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
+              Push To Talk
+            </p>
+            <p className="mt-1 text-xs text-white/45">
+              Hold `Space` to talk when this is enabled.
+            </p>
+          </div>
+          <button
+            onClick={onTogglePushToTalk}
+            className={clsx(
+              "inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition",
+              pushToTalk
+                ? "border-sea/20 bg-sea/10 text-sea"
+                : "border-white/10 bg-steel text-white/70 hover:bg-blade"
+            )}
+          >
+            <Hand size={14} />
+            {pushToTalk ? "On" : "Off"}
+          </button>
+        </div>
+        {pushToTalk ? (
+          <div
+            className={clsx(
+              "mt-3 rounded-xl px-3 py-2 text-xs uppercase tracking-[0.12em]",
+              transmitting ? "bg-sea/10 text-sea" : "bg-white/5 text-white/45"
+            )}
+          >
+            {transmitting ? "Transmitting" : "Standby"}
+          </div>
+        ) : null}
       </div>
 
       <div className="mb-3 flex items-center gap-2 text-sm text-white/50">

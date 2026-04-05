@@ -70,7 +70,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
   const remoteAudioRef = useRef<Record<string, HTMLAudioElement>>({});
   const audioContextRef = useRef<AudioContext | null>(null);
-  const isMutedRef = useRef(false);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
@@ -94,6 +93,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [isSending, setIsSending] = useState(false);
   const [isVoiceConnecting, setIsVoiceConnecting] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isPushToTalk, setIsPushToTalk] = useState(false);
+  const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
   const [presenceMembers, setPresenceMembers] = useState<Record<string, AuthIdentity & { roomId: string | null; serverId: string }>>({});
   const [typingMembers, setTypingMembers] = useState<Record<string, { name: string; channelId: string; expiresAt: number }>>({});
   const [socialData, setSocialData] = useState<SocialPayload>({
@@ -192,9 +193,73 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     });
   }
 
+  function syncLocalAudioTracks() {
+    const audioTracks = localStreamRef.current?.getAudioTracks() ?? [];
+    const shouldTransmit = !isMuted && (!isPushToTalk || isPushToTalkActive);
+
+    audioTracks.forEach((track) => {
+      track.enabled = shouldTransmit;
+    });
+  }
+
   useEffect(() => {
-    isMutedRef.current = isMuted;
-  }, [isMuted]);
+    syncLocalAudioTracks();
+  }, [isMuted, isPushToTalk, isPushToTalkActive, joinedVoiceRoomId]);
+
+  useEffect(() => {
+    if (!joinedVoiceRoomId || !isPushToTalk) {
+      if (isPushToTalkActive) {
+        setIsPushToTalkActive(false);
+      }
+      return;
+    }
+
+    function isTypingTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      const tagName = target.tagName.toLowerCase();
+      return (
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target.isContentEditable
+      );
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.code !== "Space" || event.repeat || isTypingTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      setIsPushToTalkActive(true);
+    }
+
+    function handleKeyUp(event: KeyboardEvent) {
+      if (event.code !== "Space") {
+        return;
+      }
+
+      event.preventDefault();
+      setIsPushToTalkActive(false);
+    }
+
+    function handleBlur() {
+      setIsPushToTalkActive(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [isPushToTalk, isPushToTalkActive, joinedVoiceRoomId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -669,6 +734,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
     setIsMuted(false);
+    setIsPushToTalkActive(false);
   }
 
   async function sendVoiceSignal(payload: Record<string, unknown>) {
@@ -712,6 +778,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setVoiceParticipants(null);
     setIsVoiceConnecting(false);
     setIsMuted(false);
+    setIsPushToTalkActive(false);
     playUiSound("leave");
   }
 
@@ -758,7 +825,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       const audio = new Audio();
       audio.autoplay = true;
-      audio.muted = isMutedRef.current;
       audio.srcObject = stream;
       remoteAudioRef.current[remoteUserId] = audio;
       void audio.play().catch(() => null);
@@ -1107,6 +1173,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         },
         video: false
       });
+      syncLocalAudioTracks();
 
       const response = await fetch("/api/voice/session", {
         method: "POST",
@@ -1154,16 +1221,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       return;
     }
 
-    const shouldMute = audioTracks.some((track) => track.enabled);
+    setIsMuted((current) => !current);
+  }
 
-    audioTracks.forEach((track) => {
-      track.enabled = !shouldMute;
-    });
-
-    setIsMuted(shouldMute);
-    Object.values(remoteAudioRef.current).forEach((audio) => {
-      audio.muted = shouldMute;
-    });
+  function handleTogglePushToTalk() {
+    setIsPushToTalk((current) => !current);
+    setIsPushToTalkActive(false);
   }
 
   async function handleAuthSubmit() {
@@ -1453,9 +1516,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           joined={joinedVoiceRoomId === activeVoiceChannel?.id}
           muted={isMuted}
           connecting={isVoiceConnecting}
+          pushToTalk={isPushToTalk}
+          transmitting={isPushToTalk && isPushToTalkActive && !isMuted}
           participants={activeMembers.length}
           onToggleJoin={handleVoiceToggle}
           onToggleMute={handleToggleMute}
+          onTogglePushToTalk={handleTogglePushToTalk}
         />
       </section>
 
