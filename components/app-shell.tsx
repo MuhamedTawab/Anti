@@ -1055,15 +1055,19 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   }
 
   function handleToggleMute() {
-    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+    const audioTracks = localStreamRef.current?.getAudioTracks() ?? [];
 
-    if (!audioTrack) {
+    if (!audioTracks.length) {
       return;
     }
 
-    const nextMuted = !audioTrack.enabled;
-    audioTrack.enabled = nextMuted;
-    setIsMuted(!nextMuted);
+    const shouldMute = audioTracks.some((track) => track.enabled);
+
+    audioTracks.forEach((track) => {
+      track.enabled = !shouldMute;
+    });
+
+    setIsMuted(shouldMute);
   }
 
   async function handleAuthSubmit() {

@@ -70,8 +70,9 @@ export function VoicePanel({
         <button
           onClick={onToggleMute}
           disabled={!joined}
+          title={!joined ? "Join a voice room first" : muted ? "Unmute microphone" : "Mute microphone"}
           className={clsx(
-            "flex items-center justify-center rounded-2xl border px-4 py-3 transition",
+            "flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition",
             joined
               ? muted
                 ? "border-ember/20 bg-ember/10 text-ember"
@@ -80,6 +81,7 @@ export function VoicePanel({
           )}
         >
           <MicOff size={16} />
+          {muted ? "Muted" : "Mute"}
         </button>
       </div>
 
