@@ -184,6 +184,20 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     };
   }, [activeTextChannelId, currentUser, supabase]);
 
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void loadChannelMessages(activeTextChannelId);
+    }, 3000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [activeTextChannelId, currentUser]);
+
   const activeServer = useMemo(
     () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0],
     [activeServerId, data.servers]
@@ -336,6 +350,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           )
         }
       }));
+
+      void loadChannelMessages(activeTextChannel.id);
     } finally {
       setIsSending(false);
     }
