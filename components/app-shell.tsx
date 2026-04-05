@@ -53,9 +53,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | "forgot" | "reset">("signin");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [changePasswordValue, setChangePasswordValue] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<AuthIdentity | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -99,13 +100,18 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) {
         return;
       }
 
       setCurrentUser(mapUser(session?.user ?? null));
       setAccessToken(session?.access_token ?? null);
+
+      if (event === "PASSWORD_RECOVERY") {
+        setAuthMode("reset");
+        setAuthMessage("Recovery session detected. Set your new password now.");
+      }
     });
 
     return () => {
@@ -262,15 +268,51 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     const email = authEmail.trim();
     const password = authPassword.trim();
 
-    if (!email || !password) {
-      setAuthMessage("Email and password are required.");
-      return;
-    }
-
     setAuthLoading(true);
     setAuthMessage(null);
 
     try {
+      if (authMode === "forgot") {
+        if (!email) {
+          setAuthMessage("Email is required.");
+          return;
+        }
+
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin
+        });
+
+        if (resetError) {
+          setAuthMessage(resetError.message);
+          return;
+        }
+
+        setAuthMessage("Reset link sent. Check your email inbox.");
+        return;
+      }
+
+      if (!password) {
+        setAuthMessage("Password is required.");
+        return;
+      }
+
+      if (authMode === "reset") {
+        const { error: updateError } = await supabase.auth.updateUser({
+          password
+        });
+
+        if (updateError) {
+          setAuthMessage(updateError.message);
+          return;
+        }
+
+        setAuthPassword("");
+        setAuthMode("signin");
+        setAuthMessage("Password changed. You can continue into Nightlink.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
       if (authMode === "signin") {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -309,28 +351,91 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
   }
 
+  async function handleGoogleSignIn() {
+    if (!supabase) {
+      setAuthMessage("Supabase is not configured for browser auth.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        setAuthMessage(error.message);
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!supabase) {
+      setAuthMessage("Supabase is not configured for browser auth.");
+      return;
+    }
+
+    const nextPassword = changePasswordValue.trim();
+
+    if (!nextPassword) {
+      setAuthMessage("Enter a new password first.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage(null);
+
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: nextPassword
+      });
+
+      if (updateError) {
+        setAuthMessage(updateError.message);
+        return;
+      }
+
+      setChangePasswordValue("");
+      setAuthMessage("Password updated.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     if (!supabase) {
       return;
     }
 
     await supabase.auth.signOut();
+    setAuthMode("signin");
     setAuthMessage("Signed out.");
   }
 
-  if (!currentUser) {
+  if (!currentUser || authMode === "reset") {
     return (
       <AuthPanel
         mode={authMode}
         email={authEmail}
         password={authPassword}
+        changePassword={changePasswordValue}
         currentUser={currentUser}
         loading={authLoading}
         message={authMessage}
         onModeChange={setAuthMode}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
+        onChangePasswordValueChange={setChangePasswordValue}
         onSubmit={handleAuthSubmit}
+        onGoogleSignIn={handleGoogleSignIn}
+        onChangePassword={handleChangePassword}
         onSignOut={handleSignOut}
       />
     );
@@ -342,7 +447,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         <div className="flex flex-col gap-4 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
           <div className="max-w-3xl">
             <p className="mb-3 text-xs uppercase tracking-[0.4em] text-ember/80">
-              Web Voice Command Center
+              Nightlink
             </p>
             <h1 className="font-display text-4xl uppercase tracking-[0.08em] text-white lg:text-5xl">
               Dark. Fast. Built for squads.
@@ -373,13 +478,17 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         mode={authMode}
         email={authEmail}
         password={authPassword}
+        changePassword={changePasswordValue}
         currentUser={currentUser}
         loading={authLoading}
         message={authMessage}
         onModeChange={setAuthMode}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
+        onChangePasswordValueChange={setChangePasswordValue}
         onSubmit={handleAuthSubmit}
+        onGoogleSignIn={handleGoogleSignIn}
+        onChangePassword={handleChangePassword}
         onSignOut={handleSignOut}
       />
 

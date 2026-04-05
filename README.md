@@ -1,6 +1,6 @@
-# Anti
+# Nightlink
 
-Anti is a web-first community platform built around text chat and browser voice rooms.
+Nightlink is a web-first community platform built around text chat and browser voice rooms.
 
 ## Current status
 

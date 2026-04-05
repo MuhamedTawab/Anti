@@ -14,8 +14,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Anti",
-  description: "A gated web-first voice and chat platform for squads and communities."
+  title: "Nightlink",
+  description: "Nightlink is a gated web-first voice and chat platform for squads and communities."
 };
 
 export default function RootLayout({
