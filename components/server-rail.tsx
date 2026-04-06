@@ -8,10 +8,12 @@ export function ServerRail({
   activeId,
   onSelect,
   onCreate,
-  onJoin
+  onJoin,
+  unreadCounts
 }: {
   items: Server[];
   activeId: string;
+  unreadCounts?: Record<string, number>;
   onSelect: (serverId: string) => void;
   onCreate: () => void;
   onJoin: () => void;
@@ -20,6 +22,9 @@ export function ServerRail({
     <aside className="flex w-full flex-row items-center gap-3 overflow-x-auto rounded-[28px] border border-white/10 bg-panel/95 px-3 py-4 shadow-panel backdrop-blur xl:w-20 xl:flex-col xl:overflow-visible xl:px-3 xl:py-5">
       {items.map((server) => {
         const isActive = server.id === activeId;
+        const serverUnread = server.channels.reduce((sum, channel) => {
+          return sum + (unreadCounts?.[channel.id] || 0);
+        }, 0);
 
         return (
           <button
@@ -36,6 +41,11 @@ export function ServerRail({
               <span className="absolute -left-[18px] h-7 w-1 rounded-full bg-ember" />
             ) : null}
             {server.initials}
+            {serverUnread > 0 ? (
+              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-ember text-[10px] font-bold text-white shadow-sm">
+                {serverUnread > 99 ? "99+" : serverUnread}
+              </span>
+            ) : null}
           </button>
         );
       })}

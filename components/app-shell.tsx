@@ -155,7 +155,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setProfileAvatarUrl,
     setProfileBio,
     profileDraftDirtyRef,
-    lastProfileSyncRef
+    lastProfileSyncRef,
+    unreadCounts,
+    setUnreadCounts,
+    updateReadReceipt,
+    getLocalReadReceipts
   } = useWorkspaceData(initialData, currentUser, accessToken, getAuthHeaders, setCurrentUser);
 
   const activeThread = useMemo(
@@ -208,6 +212,48 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const onlineMembers = Object.values(presenceMembers).filter((m) => m.serverId === activeServer?.id).map((m) => ({ id: m.id, name: m.name, role: m.roomId ? activeServer?.channels.find((c) => c.id === m.roomId)?.name ?? "In voice" : "Online", status: "online" as const, avatarUrl: m.avatarUrl ?? null }));
   const onlineFriendIds = Object.keys(presenceMembers);
   const activeTypingMembers = Object.values(typingMembers).filter((m) => m.channelId === activeChatKey && m.expiresAt > Date.now()).map((m) => m.name);
+
+  useEffect(() => {
+    if (!currentUser || !activeChatKey) return;
+
+    updateReadReceipt(activeChatKey);
+
+    const refreshUnreadCounts = async () => {
+      try {
+        const receipts = getLocalReadReceipts();
+        const authHeaders = getAuthHeaders();
+        if (!authHeaders) return;
+
+        const response = await fetch("/api/unread", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders },
+          body: JSON.stringify({ receipts })
+        });
+        
+        if (response.ok) {
+          const payload = await response.json();
+          if (payload.unreadCounts) {
+             setUnreadCounts(payload.unreadCounts);
+          }
+        }
+      } catch (err) {
+        // silent fail
+      }
+    };
+
+    refreshUnreadCounts();
+
+    const interval = setInterval(refreshUnreadCounts, 15000);
+    return () => clearInterval(interval);
+  }, [
+    activeChatKey,
+    displayedMessages.length,
+    currentUser,
+    getAuthHeaders,
+    getLocalReadReceipts,
+    setUnreadCounts,
+    updateReadReceipt
+  ]);
 
   async function handleServerSelect(serverId: string) {
     const nextServer =
@@ -964,6 +1010,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         <ServerRail
           items={data.servers}
           activeId={activeServer.id}
+          unreadCounts={unreadCounts}
           onSelect={handleServerSelect}
           onCreate={() => setCreateServerModalOpen(true)}
           onJoin={() => setJoinInviteModalOpen(true)}
@@ -975,6 +1022,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           onlineMembers={onlineMembers}
           currentUserId={currentUser.id}
           inviteCode={activeInviteCode}
+          unreadCounts={unreadCounts}
           canManageServer={activeServer.role === "owner"}
           onTextSelect={handleTextChannelSelect}
           onVoiceSelect={handleVoiceChannelSelect}
