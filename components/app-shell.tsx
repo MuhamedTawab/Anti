@@ -21,11 +21,26 @@ import type {
 } from "@/lib/types";
 
 function getInitialServer(data: BootstrapPayload): Server {
-  return data.servers[0];
+  return (
+    data.servers[0] ?? {
+      id: "empty",
+      name: "Nightlink",
+      initials: "NL",
+      accent: "from-[#ff3b5f] to-[#ff8a5b]",
+      channels: []
+    }
+  );
 }
 
 function getInitialTextChannel(server: Server): Channel {
-  return server.channels.find((channel) => channel.kind === "text") ?? server.channels[0];
+  return (
+    server.channels.find((channel) => channel.kind === "text") ??
+    server.channels[0] ?? {
+      id: "empty-text",
+      name: "general",
+      kind: "text"
+    }
+  );
 }
 
 function mapUser(user: User | null): AuthIdentity | null {
@@ -91,6 +106,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [changePasswordValue, setChangePasswordValue] = useState("");
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<AuthIdentity | null>(null);
+  const [profileName, setProfileName] = useState("");
+  const [profileHandle, setProfileHandle] = useState("");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
+  const [profileBio, setProfileBio] = useState("");
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -115,6 +134,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     directThreads: []
   });
   const [friendEmail, setFriendEmail] = useState("");
+  const [attachmentUrl, setAttachmentUrl] = useState("");
+  const [attachmentOpen, setAttachmentOpen] = useState(false);
+  const [activeInviteCode, setActiveInviteCode] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"channel" | "dm">("channel");
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -410,36 +432,100 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       return;
     }
 
-    async function syncAndLoadSocial() {
+    async function syncAndLoadWorkspace() {
       const headers = getAuthHeaders();
 
       if (!headers) {
         return;
       }
 
-      await fetch("/api/me/profile", {
+      const profileResponse = await fetch("/api/me/profile", {
         method: "POST",
         headers
       });
 
-      const response = await fetch("/api/social", {
-        headers,
-        cache: "no-store"
-      });
+      const profilePayload = (await profileResponse.json().catch(() => null)) as
+        | { profile?: AuthIdentity }
+        | null;
 
-      if (!response.ok) {
+      if (profilePayload?.profile) {
+        setCurrentUser(profilePayload.profile);
+        setProfileName(profilePayload.profile.name);
+        setProfileHandle(profilePayload.profile.handle);
+        setProfileAvatarUrl(profilePayload.profile.avatarUrl ?? "");
+        setProfileBio(profilePayload.profile.bio ?? "");
+      }
+
+      const [bootstrapResponse, socialResponse] = await Promise.all([
+        fetch("/api/bootstrap", {
+          headers,
+          cache: "no-store"
+        }),
+        fetch("/api/social", {
+          headers,
+          cache: "no-store"
+        })
+      ]);
+
+      if (bootstrapResponse.ok) {
+        const nextData = (await bootstrapResponse.json()) as BootstrapPayload;
+        setData(nextData);
+        if (!nextData.servers.some((server) => server.id === activeServerId) && nextData.servers[0]) {
+          setActiveServerId(nextData.servers[0].id);
+          setActiveTextChannelId(getInitialTextChannel(nextData.servers[0]).id);
+          setActiveVoiceChannelId(
+            nextData.servers[0].channels.find((channel) => channel.kind === "voice")?.id ?? ""
+          );
+        }
+      }
+
+      if (!socialResponse.ok) {
         return;
       }
 
-      const nextSocial = (await response.json()) as SocialPayload;
+      const nextSocial = (await socialResponse.json()) as SocialPayload;
       setSocialData(nextSocial);
       if (!activeThreadId && nextSocial.directThreads[0]) {
         setActiveThreadId(nextSocial.directThreads[0].id);
       }
     }
 
-    void syncAndLoadSocial();
-  }, [accessToken, activeThreadId, currentUser]);
+    void syncAndLoadWorkspace();
+  }, [accessToken, activeServerId, activeThreadId, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    setProfileName(currentUser.name);
+    setProfileHandle(currentUser.handle);
+    setProfileAvatarUrl(currentUser.avatarUrl ?? "");
+    setProfileBio(currentUser.bio ?? "");
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser || !accessToken) {
+      return;
+    }
+
+    const headers = getAuthHeaders();
+
+    if (!headers) {
+      return;
+    }
+
+    fetch("/api/social", {
+      headers,
+      cache: "no-store"
+    })
+      .then(async (response) => {
+        if (response.ok) {
+          setSocialData((await response.json()) as SocialPayload);
+        }
+      })
+      .catch(() => null);
+  }, [presenceMembers, currentUser, accessToken]);
 
   const activeThread = useMemo<DirectThread | null>(
     () => socialData.directThreads.find((thread) => thread.id === activeThreadId) ?? null,
@@ -592,6 +678,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           email: string;
           name: string;
           handle: string;
+          avatarUrl: string | null;
           roomId: string | null;
           serverId: string;
         }>();
@@ -618,6 +705,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           email: currentUser.email,
           name: currentUser.name,
           handle: currentUser.handle,
+          avatarUrl: currentUser.avatarUrl ?? null,
           roomId: joinedVoiceRoomId,
           serverId: activeServerId
         });
@@ -810,27 +898,28 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   }, [currentUser?.id, joinedVoiceRoomId]);
 
   const activeServer = useMemo(
-    () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0],
+    () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0] ?? null,
     [activeServerId, data.servers]
   );
 
   const activeTextChannel = useMemo(
     () =>
-      activeServer.channels.find((channel) => channel.id === activeTextChannelId) ??
-      activeServer.channels.find((channel) => channel.kind === "text") ??
-      activeServer.channels[0],
+      activeServer?.channels.find((channel) => channel.id === activeTextChannelId) ??
+      activeServer?.channels.find((channel) => channel.kind === "text") ??
+      activeServer?.channels[0] ??
+      null,
     [activeServer, activeTextChannelId]
   );
 
   const activeVoiceChannel = useMemo(
     () =>
-      activeServer.channels.find((channel) => channel.id === activeVoiceChannelId) ??
-      activeServer.channels.find((channel) => channel.kind === "voice") ??
+      activeServer?.channels.find((channel) => channel.id === activeVoiceChannelId) ??
+      activeServer?.channels.find((channel) => channel.kind === "voice") ??
       null,
     [activeServer, activeVoiceChannelId]
   );
 
-  const activeMessages = data.messages[activeTextChannel.id] ?? [];
+  const activeMessages = activeTextChannel ? data.messages[activeTextChannel.id] ?? [] : [];
   const displayedMessages =
     viewMode === "dm" && activeThread ? data.messages[activeThread.id] ?? [] : activeMessages;
   const speakingUserIds = Object.entries(participantLevels)
@@ -840,25 +929,27 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     ? Object.values(presenceMembers)
         .filter(
           (member) =>
-            member.serverId === activeServer.id && member.roomId === activeVoiceChannel.id
+            member.serverId === activeServer?.id && member.roomId === activeVoiceChannel.id
         )
         .map((member) => ({
           id: member.id,
           name: member.name,
           role: speakingUserIds.includes(member.id) ? "Speaking now" : "Live member",
-          status: "online" as const
+          status: "online" as const,
+          avatarUrl: member.avatarUrl ?? null
         }))
     : [];
   const onlineMembers = Object.values(presenceMembers)
-    .filter((member) => member.serverId === activeServer.id)
+    .filter((member) => member.serverId === activeServer?.id)
     .map((member) => ({
       id: member.id,
       name: member.name,
       role:
         member.roomId
-          ? activeServer.channels.find((channel) => channel.id === member.roomId)?.name ?? "In voice"
+          ? activeServer?.channels.find((channel) => channel.id === member.roomId)?.name ?? "In voice"
           : "Online",
-      status: "online" as const
+      status: "online" as const,
+      avatarUrl: member.avatarUrl ?? null
     }));
   const onlineFriendIds = Object.keys(presenceMembers);
   const activeTypingMembers = Object.values(typingMembers)
@@ -932,6 +1023,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         email: currentUser.email,
         name: currentUser.name,
         handle: currentUser.handle,
+        avatarUrl: currentUser.avatarUrl ?? null,
         roomId: null,
         serverId: nextServerId
       });
@@ -1022,7 +1114,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
   async function handleServerSelect(serverId: string) {
     const nextServer =
-      data.servers.find((server) => server.id === serverId) ?? getInitialServer(data);
+      data.servers.find((server) => server.id === serverId) ?? (data.servers[0] ?? null);
+
+    if (!nextServer) {
+      return;
+    }
+
     const nextTextChannel = getInitialTextChannel(nextServer);
     const nextVoiceChannel =
       nextServer.channels.find((channel) => channel.kind === "voice")?.id ?? "";
@@ -1034,13 +1131,16 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setActiveServerId(nextServer.id);
     setActiveTextChannelId(nextTextChannel.id);
     setActiveVoiceChannelId(nextVoiceChannel);
+    setActiveInviteCode(null);
     setViewMode("channel");
     setError(null);
   }
 
   async function loadChannelMessages(channelId: string) {
+    const headers = getAuthHeaders() ?? undefined;
     const response = await fetch(`/api/channels/${channelId}/messages`, {
-      cache: "no-store"
+      cache: "no-store",
+      headers: headers ?? undefined
     });
     const payload = (await response.json()) as { messages: Message[] };
 
@@ -1109,8 +1209,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
   async function handleSendMessage() {
     const body = composerValue.trim();
+    const nextAttachmentUrl = attachmentUrl.trim();
 
-    if (!body || !currentUser) {
+    if ((!body && !nextAttachmentUrl) || !currentUser) {
       return;
     }
 
@@ -1127,11 +1228,16 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       author: currentUser.name,
       handle: currentUser.handle,
       body,
+      attachments: nextAttachmentUrl ? [{ id: `${optimisticId}-attachment`, ...{ kind: /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(nextAttachmentUrl) ? "image" : "link", url: nextAttachmentUrl, name: decodeURIComponent((nextAttachmentUrl.split("?")[0] ?? nextAttachmentUrl).split("/").pop() || "attachment") } }] : [],
       timestamp: "sending...",
-      optimistic: true
+      optimistic: true,
+      authorAvatarUrl: currentUser.avatarUrl ?? null,
+      canModerate: true
     };
 
     setComposerValue("");
+    setAttachmentUrl("");
+    setAttachmentOpen(false);
     setError(null);
     setIsSending(true);
     setData((current) => ({
@@ -1160,7 +1266,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ body })
+          body: JSON.stringify({ body, attachmentUrl: nextAttachmentUrl || null })
         }
       );
 
@@ -1283,6 +1389,222 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
   }
 
+  async function handleDeleteMessage(messageId: string) {
+    const headers = getAuthHeaders();
+
+    if (!headers) {
+      return;
+    }
+
+    const response = await fetch(`/api/messages/${messageId}`, {
+      method: "DELETE",
+      headers
+    });
+
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+    if (!response.ok) {
+      setError(payload?.error ?? "Could not delete message.");
+      playUiSound("error");
+      return;
+    }
+
+    if (activeTextChannel) {
+      void loadChannelMessages(activeTextChannel.id);
+    }
+    playUiSound("success");
+  }
+
+  async function handleCreateServer() {
+    const name = window.prompt("Server name");
+    const headers = getAuthHeaders();
+
+    if (!headers || !name?.trim()) {
+      return;
+    }
+
+    const response = await fetch("/api/servers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { serverId?: string; error?: string }
+      | null;
+
+    if (!response.ok || !payload?.serverId) {
+      setError(payload?.error ?? "Could not create server.");
+      playUiSound("error");
+      return;
+    }
+
+    const bootstrapResponse = await fetch("/api/bootstrap", {
+      headers,
+      cache: "no-store"
+    });
+
+    if (bootstrapResponse.ok) {
+      const nextData = (await bootstrapResponse.json()) as BootstrapPayload;
+      setData(nextData);
+      const nextServer = nextData.servers.find((server) => server.id === payload.serverId);
+
+      if (nextServer) {
+        setActiveServerId(nextServer.id);
+        setActiveTextChannelId(getInitialTextChannel(nextServer).id);
+        setActiveVoiceChannelId(
+          nextServer.channels.find((channel) => channel.kind === "voice")?.id ?? ""
+        );
+      }
+    }
+
+    playUiSound("success");
+  }
+
+  async function handleJoinInvite() {
+    const code = window.prompt("Invite code");
+    const headers = getAuthHeaders();
+
+    if (!headers || !code?.trim()) {
+      return;
+    }
+
+    const response = await fetch(`/api/invites/${encodeURIComponent(code)}/join`, {
+      method: "POST",
+      headers
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { serverId?: string; error?: string }
+      | null;
+
+    if (!response.ok) {
+      setError(payload?.error ?? "Could not join server.");
+      playUiSound("error");
+      return;
+    }
+
+    const bootstrapResponse = await fetch("/api/bootstrap", {
+      headers,
+      cache: "no-store"
+    });
+
+    if (bootstrapResponse.ok) {
+      const nextData = (await bootstrapResponse.json()) as BootstrapPayload;
+      setData(nextData);
+      const nextServer = nextData.servers.find((server) => server.id === payload?.serverId);
+
+      if (nextServer) {
+        setActiveServerId(nextServer.id);
+        setActiveTextChannelId(getInitialTextChannel(nextServer).id);
+        setActiveVoiceChannelId(
+          nextServer.channels.find((channel) => channel.kind === "voice")?.id ?? ""
+        );
+      }
+    }
+
+    playUiSound("success");
+  }
+
+  async function handleCreateInvite() {
+    const headers = getAuthHeaders();
+
+    if (!headers || !activeServer) {
+      return;
+    }
+
+    const response = await fetch(`/api/servers/${activeServer.id}/invite`, {
+      method: "POST",
+      headers
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { code?: string; error?: string }
+      | null;
+
+    if (!response.ok || !payload?.code) {
+      setError(payload?.error ?? "Could not create invite.");
+      playUiSound("error");
+      return;
+    }
+
+    setActiveInviteCode(payload.code);
+    playUiSound("success");
+  }
+
+  async function handleModerateMember(targetProfileId: string, action: "kick" | "ban") {
+    const headers = getAuthHeaders();
+
+    if (!headers || !activeServer) {
+      return;
+    }
+
+    const response = await fetch(`/api/servers/${activeServer.id}/moderation`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers
+      },
+      body: JSON.stringify({ targetProfileId, action })
+    });
+
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+    if (!response.ok) {
+      setError(payload?.error ?? "Could not moderate member.");
+      playUiSound("error");
+      return;
+    }
+
+    playUiSound("success");
+  }
+
+  async function handleSaveProfile() {
+    const headers = getAuthHeaders();
+
+    if (!headers) {
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage(null);
+
+    try {
+      const response = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers
+        },
+        body: JSON.stringify({
+          name: profileName,
+          handle: profileHandle,
+          avatarUrl: profileAvatarUrl,
+          bio: profileBio
+        })
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { profile?: AuthIdentity; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.profile) {
+        setAuthMessage(payload?.error ?? "Could not save profile.");
+        playUiSound("error");
+        return;
+      }
+
+      setCurrentUser(payload.profile);
+      setAuthMessage("Profile updated.");
+      playUiSound("success");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   async function handleRespondFriendRequest(requestId: string, action: "accept" | "decline") {
     const headers = getAuthHeaders();
 
@@ -1384,6 +1706,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           email: currentUser.email,
           name: currentUser.name,
           handle: currentUser.handle,
+          avatarUrl: currentUser.avatarUrl ?? null,
           roomId: payload.roomId,
           serverId: activeServerId
         });
@@ -1602,6 +1925,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       outgoingRequests: [],
       directThreads: []
     });
+    setActiveInviteCode(null);
+    setAttachmentUrl("");
+    setAttachmentOpen(false);
     setAuthMode("signin");
     setAuthMessage("Signed out.");
     playUiSound("leave");
@@ -1613,6 +1939,54 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     };
   }, []);
 
+  if (!activeServer || !activeTextChannel) {
+    return (
+      <div className="space-y-4">
+        <AuthPanel
+          mode={authMode}
+          email={authEmail}
+          password={authPassword}
+          changePassword={changePasswordValue}
+          currentUser={currentUser}
+          profileName={profileName}
+          profileHandle={profileHandle}
+          profileAvatarUrl={profileAvatarUrl}
+          profileBio={profileBio}
+          loading={authLoading}
+          message={authMessage}
+          onModeChange={setAuthMode}
+          onEmailChange={setAuthEmail}
+          onPasswordChange={setAuthPassword}
+          onChangePasswordValueChange={setChangePasswordValue}
+          onProfileNameChange={setProfileName}
+          onProfileHandleChange={setProfileHandle}
+          onProfileAvatarUrlChange={setProfileAvatarUrl}
+          onProfileBioChange={setProfileBio}
+          onSubmit={handleAuthSubmit}
+          onGoogleSignIn={handleGoogleSignIn}
+          onChangePassword={handleChangePassword}
+          onSaveProfile={handleSaveProfile}
+          onSignOut={handleSignOut}
+        />
+        <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-panel/90 px-6 py-8 shadow-panel">
+          <button
+            onClick={handleCreateServer}
+            className="rounded-2xl bg-ember px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white"
+          >
+            Create Server
+          </button>
+          <button
+            onClick={handleJoinInvite}
+            className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white/80"
+          >
+            Join Invite
+          </button>
+          <span className="text-sm text-white/60">No servers are available for this account yet.</span>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentUser || authMode === "reset") {
     return (
       <AuthPanel
@@ -1621,15 +1995,24 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         password={authPassword}
         changePassword={changePasswordValue}
         currentUser={currentUser}
+        profileName={profileName}
+        profileHandle={profileHandle}
+        profileAvatarUrl={profileAvatarUrl}
+        profileBio={profileBio}
         loading={authLoading}
         message={authMessage}
         onModeChange={setAuthMode}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
         onChangePasswordValueChange={setChangePasswordValue}
+        onProfileNameChange={setProfileName}
+        onProfileHandleChange={setProfileHandle}
+        onProfileAvatarUrlChange={setProfileAvatarUrl}
+        onProfileBioChange={setProfileBio}
         onSubmit={handleAuthSubmit}
         onGoogleSignIn={handleGoogleSignIn}
         onChangePassword={handleChangePassword}
+        onSaveProfile={handleSaveProfile}
         onSignOut={handleSignOut}
       />
     );
@@ -1674,38 +2057,63 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         password={authPassword}
         changePassword={changePasswordValue}
         currentUser={currentUser}
+        profileName={profileName}
+        profileHandle={profileHandle}
+        profileAvatarUrl={profileAvatarUrl}
+        profileBio={profileBio}
         loading={authLoading}
         message={authMessage}
         onModeChange={setAuthMode}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
         onChangePasswordValueChange={setChangePasswordValue}
+        onProfileNameChange={setProfileName}
+        onProfileHandleChange={setProfileHandle}
+        onProfileAvatarUrlChange={setProfileAvatarUrl}
+        onProfileBioChange={setProfileBio}
         onSubmit={handleAuthSubmit}
         onGoogleSignIn={handleGoogleSignIn}
         onChangePassword={handleChangePassword}
+        onSaveProfile={handleSaveProfile}
         onSignOut={handleSignOut}
       />
 
       <section className="grid gap-4 xl:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
-        <ServerRail items={data.servers} activeId={activeServer.id} onSelect={handleServerSelect} />
+        <ServerRail
+          items={data.servers}
+          activeId={activeServer.id}
+          onSelect={handleServerSelect}
+          onCreate={handleCreateServer}
+          onJoin={handleJoinInvite}
+        />
         <ChannelList
           server={activeServer}
           activeChannelId={activeTextChannel.id}
           activeVoiceChannelId={activeVoiceChannel?.id ?? ""}
           onlineMembers={onlineMembers}
+          currentUserId={currentUser.id}
+          inviteCode={activeInviteCode}
+          canManageServer={activeServer.role === "owner"}
           onTextSelect={handleTextChannelSelect}
           onVoiceSelect={handleVoiceChannelSelect}
+          onCreateInvite={handleCreateInvite}
+          onModerateMember={handleModerateMember}
         />
         <ChatPanel
           channelName={viewMode === "dm" && activeThread ? activeThread.friendName : activeTextChannel.name}
           channelPrefix={viewMode === "dm" ? "@" : "#"}
           items={displayedMessages}
           composerValue={composerValue}
+          attachmentUrl={attachmentUrl}
+          attachmentOpen={attachmentOpen}
           pending={isPending || isSending}
           canSend={Boolean(currentUser)}
           typingMembers={activeTypingMembers}
           onComposerChange={handleComposerChange}
+          onAttachmentChange={setAttachmentUrl}
+          onToggleAttachment={() => setAttachmentOpen((current) => !current)}
           onSend={handleSendMessage}
+          onDeleteMessage={handleDeleteMessage}
         />
         <VoicePanel
           roomName={activeVoiceChannel?.name ?? "No Room"}

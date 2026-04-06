@@ -5,13 +5,14 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { getAuthenticatedIdentity } from "@/lib/supabase/auth";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   const { channelId } = await params;
+  const identity = await getAuthenticatedIdentity(request);
 
   return NextResponse.json({
-    messages: await getMessages(channelId)
+    messages: await getMessages(channelId, identity ?? undefined)
   });
 }
 
@@ -20,12 +21,12 @@ export async function POST(
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   const { channelId } = await params;
-  const body = (await request.json()) as { body?: string };
+  const body = (await request.json()) as { body?: string; attachmentUrl?: string | null };
   const identity = await getAuthenticatedIdentity(request);
 
-  if (!body.body?.trim()) {
+  if (!body.body?.trim() && !body.attachmentUrl?.trim()) {
     return NextResponse.json(
-      { error: "Message body is required." },
+      { error: "Message body or attachment is required." },
       { status: 400 }
     );
   }
@@ -37,7 +38,12 @@ export async function POST(
     );
   }
 
-  const message = await addMessage(channelId, body.body, identity ?? undefined);
+  const message = await addMessage(
+    channelId,
+    body.body ?? "",
+    identity ?? undefined,
+    body.attachmentUrl ?? null
+  );
 
   return NextResponse.json({ message }, { status: 201 });
 }

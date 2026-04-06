@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Hash, Headphones, Shield, Sparkles, Users } from "lucide-react";
+import { Ban, Hash, Headphones, Shield, Sparkles, Ticket, UserX, Users } from "lucide-react";
 
 import type { Channel, Member, Server } from "@/lib/types";
 
@@ -45,21 +45,31 @@ export function ChannelList({
   activeChannelId,
   activeVoiceChannelId,
   onlineMembers,
+  currentUserId,
+  inviteCode,
+  canManageServer,
   onTextSelect,
-  onVoiceSelect
+  onVoiceSelect,
+  onCreateInvite,
+  onModerateMember
 }: {
   server: Server;
   activeChannelId: string;
   activeVoiceChannelId: string;
   onlineMembers: Member[];
+  currentUserId: string;
+  inviteCode: string | null;
+  canManageServer: boolean;
   onTextSelect: (channelId: string) => void;
   onVoiceSelect: (channelId: string) => void;
+  onCreateInvite: () => void;
+  onModerateMember: (targetProfileId: string, action: "kick" | "ban") => void;
 }) {
   const textChannels = server.channels.filter((channel) => channel.kind === "text");
   const voiceChannels = server.channels.filter((channel) => channel.kind === "voice");
 
   return (
-    <section className="flex w-[300px] flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur">
+    <section className="flex w-full flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur xl:w-[300px]">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">{server.name}</p>
@@ -76,8 +86,24 @@ export function ChannelList({
           <span>Combat Status</span>
         </div>
         <p className="text-sm leading-6 text-white/62">
-          Server is stable. Matchmaking chat is hot, voice load is clean, and two fresh invites are waiting.
+          Server is stable. Matchmaking chat is hot, voice load is clean, and your current squad tools are ready.
         </p>
+        {canManageServer ? (
+          <div className="mt-4 space-y-3">
+            <button
+              onClick={onCreateInvite}
+              className="inline-flex items-center gap-2 rounded-2xl border border-sea/20 bg-sea/10 px-3 py-2 text-xs uppercase tracking-[0.16em] text-sea transition hover:brightness-110"
+            >
+              <Ticket size={13} />
+              Create Invite
+            </button>
+            {inviteCode ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/70">
+                Invite Code: <span className="font-semibold tracking-[0.22em] text-white">{inviteCode}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -118,7 +144,12 @@ export function ChannelList({
               >
                 <div className="flex items-center gap-3">
                   <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-white/5 text-xs font-semibold text-white">
-                    {member.name.slice(0, 2).toUpperCase()}
+                    {member.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={member.avatarUrl} alt={member.name} className="h-full w-full rounded-2xl object-cover" />
+                    ) : (
+                      member.name.slice(0, 2).toUpperCase()
+                    )}
                     <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-panel bg-sea" />
                   </div>
                   <div>
@@ -126,7 +157,27 @@ export function ChannelList({
                     <p className="text-xs text-white/40">{member.role}</p>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase tracking-[0.22em] text-sea">online</span>
+                <div className="flex items-center gap-2">
+                  {canManageServer && member.id !== currentUserId ? (
+                    <>
+                      <button
+                        onClick={() => onModerateMember(member.id, "kick")}
+                        className="rounded-xl border border-white/10 bg-steel p-2 text-white/65 transition hover:bg-blade hover:text-white"
+                        title="Kick member"
+                      >
+                        <UserX size={12} />
+                      </button>
+                      <button
+                        onClick={() => onModerateMember(member.id, "ban")}
+                        className="rounded-xl border border-ember/20 bg-ember/10 p-2 text-ember transition hover:brightness-110"
+                        title="Ban member"
+                      >
+                        <Ban size={12} />
+                      </button>
+                    </>
+                  ) : null}
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-sea">online</span>
+                </div>
               </div>
             ))
           ) : (

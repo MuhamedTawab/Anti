@@ -1,19 +1,23 @@
 import clsx from "clsx";
-import { Plus } from "lucide-react";
+import { Plus, Ticket } from "lucide-react";
 
 import type { Server } from "@/lib/types";
 
 export function ServerRail({
   items,
   activeId,
-  onSelect
+  onSelect,
+  onCreate,
+  onJoin
 }: {
   items: Server[];
   activeId: string;
   onSelect: (serverId: string) => void;
+  onCreate: () => void;
+  onJoin: () => void;
 }) {
   return (
-    <aside className="flex w-20 flex-col items-center gap-4 rounded-[28px] border border-white/10 bg-panel/95 px-3 py-5 shadow-panel backdrop-blur">
+    <aside className="flex w-full flex-row items-center gap-3 overflow-x-auto rounded-[28px] border border-white/10 bg-panel/95 px-3 py-4 shadow-panel backdrop-blur xl:w-20 xl:flex-col xl:overflow-visible xl:px-3 xl:py-5">
       {items.map((server) => {
         const isActive = server.id === activeId;
 
@@ -36,8 +40,17 @@ export function ServerRail({
         );
       })}
 
-      <button className="mt-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-steel text-white/60 transition hover:border-ember/30 hover:bg-blade hover:text-white">
+      <button
+        onClick={onCreate}
+        className="xl:mt-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-steel text-white/60 transition hover:border-ember/30 hover:bg-blade hover:text-white"
+      >
         <Plus size={18} />
+      </button>
+      <button
+        onClick={onJoin}
+        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-steel text-white/60 transition hover:border-sea/30 hover:bg-blade hover:text-sea"
+      >
+        <Ticket size={18} />
       </button>
     </aside>
   );

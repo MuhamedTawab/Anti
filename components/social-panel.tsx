@@ -100,7 +100,12 @@ export function SocialPanel({
             >
               <div className="flex items-center gap-3">
                 <div className="relative flex h-9 w-9 items-center justify-center rounded-2xl bg-white/5 text-xs font-semibold text-white">
-                  {friend.name.slice(0, 2).toUpperCase()}
+                  {friend.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={friend.avatarUrl} alt={friend.name} className="h-full w-full rounded-2xl object-cover" />
+                  ) : (
+                    friend.name.slice(0, 2).toUpperCase()
+                  )}
                   <span
                     className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-panel ${
                       onlineFriendIds.includes(friend.id) ? "bg-sea" : "bg-white/20"

@@ -54,7 +54,7 @@ export function VoicePanel({
             : "Idle";
 
   return (
-    <aside className="flex w-[320px] flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur">
+    <aside className="flex w-full flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur xl:w-[320px]">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">{roomName}</p>
@@ -223,7 +223,12 @@ export function VoicePanel({
                       "ring-2 ring-sea/80 shadow-[0_0_22px_rgba(123,246,255,0.35)]"
                   )}
                 >
-                  {member.name.slice(0, 2).toUpperCase()}
+                  {member.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={member.avatarUrl} alt={member.name} className="h-full w-full rounded-2xl object-cover" />
+                  ) : (
+                    member.name.slice(0, 2).toUpperCase()
+                  )}
                   <span
                     className={clsx(
                       "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-panel",

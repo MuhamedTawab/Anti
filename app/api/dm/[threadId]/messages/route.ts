@@ -38,14 +38,14 @@ export async function POST(
   }
 
   const { threadId } = await params;
-  const body = (await request.json()) as { body?: string };
+  const body = (await request.json()) as { body?: string; attachmentUrl?: string | null };
 
-  if (!body.body?.trim()) {
-    return NextResponse.json({ error: "Message body is required." }, { status: 400 });
+  if (!body.body?.trim() && !body.attachmentUrl?.trim()) {
+    return NextResponse.json({ error: "Message body or attachment is required." }, { status: 400 });
   }
 
   try {
-    const message = await addDirectMessage(threadId, body.body, identity);
+    const message = await addDirectMessage(threadId, body.body ?? "", identity, body.attachmentUrl ?? null);
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

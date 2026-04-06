@@ -5,6 +5,7 @@ create table if not exists servers (
   name text not null,
   initials text not null,
   accent text not null,
+  owner_id uuid,
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -23,6 +24,7 @@ create table if not exists channels (
 create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   channel_id text not null references channels(id) on delete cascade,
+  author_id uuid,
   author text not null,
   handle text not null,
   body text not null,
@@ -44,8 +46,39 @@ create table if not exists profiles (
   email text not null unique,
   name text not null,
   handle text not null unique,
+  avatar_url text,
+  bio text not null default '',
   created_at timestamptz not null default now()
 );
+
+create table if not exists server_memberships (
+  id uuid primary key default gen_random_uuid(),
+  server_id text not null references servers(id) on delete cascade,
+  profile_id uuid not null references profiles(id) on delete cascade,
+  role text not null default 'member' check (role in ('owner', 'member')),
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists server_memberships_unique
+on server_memberships (server_id, profile_id);
+
+create table if not exists server_invites (
+  code text primary key,
+  server_id text not null references servers(id) on delete cascade,
+  created_by uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists server_bans (
+  id uuid primary key default gen_random_uuid(),
+  server_id text not null references servers(id) on delete cascade,
+  profile_id uuid not null references profiles(id) on delete cascade,
+  created_by uuid not null references profiles(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists server_bans_unique
+on server_bans (server_id, profile_id);
 
 create table if not exists friend_requests (
   id uuid primary key default gen_random_uuid(),
@@ -93,6 +126,40 @@ create table if not exists direct_messages (
   timestamp text not null,
   created_at timestamptz not null default now()
 );
+
+create table if not exists message_attachments (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid not null references messages(id) on delete cascade,
+  kind text not null check (kind in ('image', 'link')),
+  url text not null,
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists direct_message_attachments (
+  id uuid primary key default gen_random_uuid(),
+  direct_message_id uuid not null references direct_messages(id) on delete cascade,
+  kind text not null check (kind in ('image', 'link')),
+  url text not null,
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists moderation_actions (
+  id uuid primary key default gen_random_uuid(),
+  server_id text not null references servers(id) on delete cascade,
+  actor_id uuid not null references profiles(id) on delete cascade,
+  target_profile_id uuid references profiles(id) on delete cascade,
+  message_id uuid references messages(id) on delete set null,
+  action text not null check (action in ('delete_message', 'kick', 'ban')),
+  reason text,
+  created_at timestamptz not null default now()
+);
+
+alter table servers add column if not exists owner_id uuid;
+alter table messages add column if not exists author_id uuid;
+alter table profiles add column if not exists avatar_url text;
+alter table profiles add column if not exists bio text not null default '';
 
 insert into servers (id, name, initials, accent, sort_order) values
   ('hq', 'Anti HQ', 'AH', 'from-[#ff3b5f] to-[#ff8a5b]', 1),
