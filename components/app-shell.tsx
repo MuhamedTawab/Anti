@@ -75,6 +75,20 @@ function replaceMessage(messages: Message[], previousId: string, nextMessage: Me
   return mergeMessage(filtered, nextMessage);
 }
 
+function profileSnapshotKey(profile: AuthIdentity | null) {
+  if (!profile) {
+    return null;
+  }
+
+  return JSON.stringify({
+    id: profile.id,
+    name: profile.name,
+    handle: profile.handle,
+    avatarUrl: profile.avatarUrl ?? "",
+    bio: profile.bio ?? ""
+  });
+}
+
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), []);
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null);
@@ -88,6 +102,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const audioSourceRefs = useRef<Record<string, MediaStreamAudioSourceNode>>({});
   const signalRafRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const profileDraftDirtyRef = useRef(false);
+  const lastProfileSyncRef = useRef<string | null>(null);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
@@ -450,10 +466,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       if (profilePayload?.profile) {
         setCurrentUser(profilePayload.profile);
-        setProfileName(profilePayload.profile.name);
-        setProfileHandle(profilePayload.profile.handle);
-        setProfileAvatarUrl(profilePayload.profile.avatarUrl ?? "");
-        setProfileBio(profilePayload.profile.bio ?? "");
       }
 
       const [bootstrapResponse, socialResponse] = await Promise.all([
@@ -491,17 +503,27 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
 
     void syncAndLoadWorkspace();
-  }, [accessToken, activeServerId, activeThreadId, currentUser]);
+  }, [accessToken, currentUser?.id]);
 
   useEffect(() => {
     if (!currentUser) {
       return;
     }
 
-    setProfileName(currentUser.name);
-    setProfileHandle(currentUser.handle);
-    setProfileAvatarUrl(currentUser.avatarUrl ?? "");
-    setProfileBio(currentUser.bio ?? "");
+    const nextSnapshot = profileSnapshotKey(currentUser);
+
+    if (profileDraftDirtyRef.current && lastProfileSyncRef.current === nextSnapshot) {
+      return;
+    }
+
+    if (!profileDraftDirtyRef.current || lastProfileSyncRef.current !== nextSnapshot) {
+      setProfileName(currentUser.name);
+      setProfileHandle(currentUser.handle);
+      setProfileAvatarUrl(currentUser.avatarUrl ?? "");
+      setProfileBio(currentUser.bio ?? "");
+      lastProfileSyncRef.current = nextSnapshot;
+      profileDraftDirtyRef.current = false;
+    }
   }, [currentUser]);
 
   useEffect(() => {
@@ -695,21 +717,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
         setPresenceMembers(flattened);
       })
-      .subscribe(async (status) => {
-        if (status !== "SUBSCRIBED") {
-          return;
-        }
-
-        await channel.track({
-          id: currentUser.id,
-          email: currentUser.email,
-          name: currentUser.name,
-          handle: currentUser.handle,
-          avatarUrl: currentUser.avatarUrl ?? null,
-          roomId: joinedVoiceRoomId,
-          serverId: activeServerId
-        });
-      });
+      .subscribe();
 
     presenceChannelRef.current = channel;
 
@@ -719,7 +727,31 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       }
       void supabase.removeChannel(channel);
     };
-  }, [activeServerId, currentUser, joinedVoiceRoomId, supabase]);
+  }, [currentUser?.id, supabase]);
+
+  useEffect(() => {
+    if (!presenceChannelRef.current || !currentUser) {
+      return;
+    }
+
+    void presenceChannelRef.current.track({
+      id: currentUser.id,
+      email: currentUser.email,
+      name: currentUser.name,
+      handle: currentUser.handle,
+      avatarUrl: currentUser.avatarUrl ?? null,
+      roomId: joinedVoiceRoomId,
+      serverId: activeServerId
+    });
+  }, [
+    activeServerId,
+    currentUser?.avatarUrl,
+    currentUser?.email,
+    currentUser?.handle,
+    currentUser?.id,
+    currentUser?.name,
+    joinedVoiceRoomId
+  ]);
 
   useEffect(() => {
     if (!supabase || !currentUser || !joinedVoiceRoomId) {
@@ -1597,12 +1629,34 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         return;
       }
 
+      profileDraftDirtyRef.current = false;
+      lastProfileSyncRef.current = profileSnapshotKey(payload.profile);
       setCurrentUser(payload.profile);
       setAuthMessage("Profile updated.");
       playUiSound("success");
     } finally {
       setAuthLoading(false);
     }
+  }
+
+  function handleProfileNameChange(value: string) {
+    profileDraftDirtyRef.current = true;
+    setProfileName(value);
+  }
+
+  function handleProfileHandleChange(value: string) {
+    profileDraftDirtyRef.current = true;
+    setProfileHandle(value);
+  }
+
+  function handleProfileAvatarUrlChange(value: string) {
+    profileDraftDirtyRef.current = true;
+    setProfileAvatarUrl(value);
+  }
+
+  function handleProfileBioChange(value: string) {
+    profileDraftDirtyRef.current = true;
+    setProfileBio(value);
   }
 
   async function handleRespondFriendRequest(requestId: string, action: "accept" | "decline") {
@@ -1958,10 +2012,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           onEmailChange={setAuthEmail}
           onPasswordChange={setAuthPassword}
           onChangePasswordValueChange={setChangePasswordValue}
-          onProfileNameChange={setProfileName}
-          onProfileHandleChange={setProfileHandle}
-          onProfileAvatarUrlChange={setProfileAvatarUrl}
-          onProfileBioChange={setProfileBio}
+          onProfileNameChange={handleProfileNameChange}
+          onProfileHandleChange={handleProfileHandleChange}
+          onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
+          onProfileBioChange={handleProfileBioChange}
           onSubmit={handleAuthSubmit}
           onGoogleSignIn={handleGoogleSignIn}
           onChangePassword={handleChangePassword}
@@ -2005,10 +2059,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
         onChangePasswordValueChange={setChangePasswordValue}
-        onProfileNameChange={setProfileName}
-        onProfileHandleChange={setProfileHandle}
-        onProfileAvatarUrlChange={setProfileAvatarUrl}
-        onProfileBioChange={setProfileBio}
+        onProfileNameChange={handleProfileNameChange}
+        onProfileHandleChange={handleProfileHandleChange}
+        onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
+        onProfileBioChange={handleProfileBioChange}
         onSubmit={handleAuthSubmit}
         onGoogleSignIn={handleGoogleSignIn}
         onChangePassword={handleChangePassword}
@@ -2067,10 +2121,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
         onChangePasswordValueChange={setChangePasswordValue}
-        onProfileNameChange={setProfileName}
-        onProfileHandleChange={setProfileHandle}
-        onProfileAvatarUrlChange={setProfileAvatarUrl}
-        onProfileBioChange={setProfileBio}
+          onProfileNameChange={handleProfileNameChange}
+          onProfileHandleChange={handleProfileHandleChange}
+          onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
+          onProfileBioChange={handleProfileBioChange}
         onSubmit={handleAuthSubmit}
         onGoogleSignIn={handleGoogleSignIn}
         onChangePassword={handleChangePassword}
