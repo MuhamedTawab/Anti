@@ -1020,6 +1020,8 @@ export async function createServer(identity: AuthIdentity, name: string) {
     throw new Error("Server name must be at least 3 characters.");
   }
 
+  await ensureProfile(identity);
+
   const id = `${slugify(trimmed)}-${crypto.randomUUID().slice(0, 8)}`;
   const accentChoices = [
     "from-[#ff3b5f] to-[#ff8a5b]",
@@ -1035,19 +1037,19 @@ export async function createServer(identity: AuthIdentity, name: string) {
     accent: accentChoices[Math.floor(Math.random() * accentChoices.length)],
     owner_id: identity.id,
     sort_order: Date.now()
-  });
+  }).throwOnError();
 
   await supabase.from("server_memberships").upsert({
     server_id: id,
     profile_id: identity.id,
     role: "owner"
-  });
+  }).throwOnError();
 
   await supabase.from("channels").insert([
     { id: `${id}-general`, server_id: id, name: "general", kind: "text", sort_order: 1 },
     { id: `${id}-screenshots`, server_id: id, name: "screenshots", kind: "text", sort_order: 2 },
     { id: `${id}-lounge`, server_id: id, name: "lounge", kind: "voice", sort_order: 3 }
-  ]);
+  ]).throwOnError();
 
   return id;
 }

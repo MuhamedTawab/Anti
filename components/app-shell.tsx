@@ -1004,6 +1004,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
         />
+        {error ? (
+          <div className="rounded-2xl border border-ember/30 bg-ember/10 px-4 py-3 text-sm text-ember">
+            {error}
+          </div>
+        ) : null}
         <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-panel/90 px-6 py-8 shadow-panel">
           <button
             onClick={() => setCreateServerModalOpen(true)}
