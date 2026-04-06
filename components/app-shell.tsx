@@ -731,23 +731,29 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
   useEffect(() => {
     let frame = 0;
+    const idleLevels = [14, 18, 12, 22, 16, 24, 13, 19, 15, 21];
 
     function tick() {
       const localLevel = measureAnalyserLevel(localAnalyserRef.current);
       const remoteLevels = Object.values(remoteAnalyserRefs.current).map((analyser) =>
         measureAnalyserLevel(analyser)
       );
-      const roomLevel = Math.max(localLevel, ...remoteLevels, joinedVoiceRoomId ? 0.08 : 0.02);
-      const idleWave = Date.now() / 240;
+      const roomLevel = Math.max(localLevel, ...remoteLevels, 0);
 
-      setSignalLevels((current) =>
-        current.map((_, index) => {
-          const wave = (Math.sin(idleWave + index * 0.72) + 1) / 2;
-          const emphasis = index % 3 === 0 ? 1.16 : index % 2 === 0 ? 0.94 : 0.82;
-          const height = 12 + wave * 16 + roomLevel * 54 * emphasis;
-          return Math.max(10, Math.min(82, Math.round(height)));
-        })
-      );
+      if (roomLevel < 0.035) {
+        setSignalLevels(idleLevels);
+      } else {
+        const activeWave = Date.now() / 180;
+
+        setSignalLevels(
+          idleLevels.map((base, index) => {
+            const wave = (Math.sin(activeWave + index * 0.72) + 1) / 2;
+            const emphasis = index % 3 === 0 ? 1.16 : index % 2 === 0 ? 0.94 : 0.82;
+            const height = base + wave * 10 + roomLevel * 54 * emphasis;
+            return Math.max(10, Math.min(82, Math.round(height)));
+          })
+        );
+      }
 
       frame = window.requestAnimationFrame(tick);
       signalRafRef.current = frame;
