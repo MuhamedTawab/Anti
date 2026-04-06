@@ -889,7 +889,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     );
   }
 
-  if (!currentUser || authMode === "reset") {
+  if (!currentUser) {
     return (
       <AuthPanel
         currentUser={currentUser}
