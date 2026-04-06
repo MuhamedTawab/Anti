@@ -125,17 +125,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const {
     currentUser,
     accessToken,
-    authMode,
-    authEmail,
-    authPassword,
-    changePasswordValue,
     authLoading,
     authMessage,
     setCurrentUser,
-    setAuthMode,
-    setAuthEmail,
-    setAuthPassword,
-    setChangePasswordValue,
     setAuthMessage,
     setAuthLoading,
     getAuthHeaders
@@ -787,109 +779,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
   }
 
-  
-
-  async function handleAuthSubmit() {
-    if (!supabase) {
-      setAuthMessage("Supabase is not configured for browser auth.");
-      return;
-    }
-
-    const email = authEmail.trim();
-    const password = authPassword.trim();
-
-    setAuthLoading(true);
-    setAuthMessage(null);
-
-    try {
-      if (authMode === "forgot") {
-        if (!email) {
-          setAuthMessage("Email is required.");
-          return;
-        }
-
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin
-        });
-
-        if (resetError) {
-          setAuthMessage(resetError.message);
-          playUiSound("error");
-          return;
-        }
-
-        setAuthMessage("Reset link sent. Check your email inbox.");
-        playUiSound("success");
-        return;
-      }
-
-      if (!password) {
-        setAuthMessage("Password is required.");
-        return;
-      }
-
-      if (authMode === "reset") {
-        const { error: updateError } = await supabase.auth.updateUser({
-          password
-        });
-
-        if (updateError) {
-          setAuthMessage(updateError.message);
-          playUiSound("error");
-          return;
-        }
-
-        setAuthPassword("");
-        setAuthMode("signin");
-        setAuthMessage("Password changed. You can continue into Nightlink.");
-        playUiSound("success");
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
-
-      if (authMode === "signin") {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (signInError) {
-          setAuthMessage(signInError.message);
-          playUiSound("error");
-          return;
-        }
-
-        setAuthPassword("");
-        setAuthMessage("Signed in. Your next messages will use your account.");
-        playUiSound("success");
-        return;
-      }
-
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password
-      });
-
-      if (signUpError) {
-        setAuthMessage(signUpError.message);
-        playUiSound("error");
-        return;
-      }
-
-      setAuthPassword("");
-      setAuthMode("signin");
-      setAuthMessage(
-        signUpData.session
-          ? "Account created and signed in."
-          : "Account created. Check your email if confirmation is required, then sign in."
-      );
-      playUiSound("success");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleGoogleSignIn() {
+    async function handleGoogleSignIn() {
     if (!supabase) {
       setAuthMessage("Supabase is not configured for browser auth.");
       return;
@@ -915,43 +805,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     }
   }
 
-  async function handleChangePassword() {
-    if (!supabase) {
-      setAuthMessage("Supabase is not configured for browser auth.");
-      return;
-    }
-
-    const nextPassword = changePasswordValue.trim();
-
-    if (!nextPassword) {
-      setAuthMessage("Enter a new password first.");
-      playUiSound("error");
-      return;
-    }
-
-    setAuthLoading(true);
-    setAuthMessage(null);
-
-    try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: nextPassword
-      });
-
-      if (updateError) {
-        setAuthMessage(updateError.message);
-        playUiSound("error");
-        return;
-      }
-
-      setChangePasswordValue("");
-      setAuthMessage("Password updated.");
-      playUiSound("success");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
-  async function handleSignOut() {
+    async function handleSignOut() {
     if (!supabase) {
       return;
     }
@@ -968,7 +822,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setActiveInviteCode(null);
     setAttachmentUrl("");
     setAttachmentOpen(false);
-    setAuthMode("signin");
     setAuthMessage("Signed out.");
     playUiSound("leave");
   }
@@ -979,10 +832,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     return (
       <div className="space-y-4">
         <AuthPanel
-          mode={authMode}
-          email={authEmail}
-          password={authPassword}
-          changePassword={changePasswordValue}
           currentUser={currentUser}
           profileName={profileName}
           profileHandle={profileHandle}
@@ -990,17 +839,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           profileBio={profileBio}
           loading={authLoading}
           message={authMessage}
-          onModeChange={setAuthMode}
-          onEmailChange={setAuthEmail}
-          onPasswordChange={setAuthPassword}
-          onChangePasswordValueChange={setChangePasswordValue}
           onProfileNameChange={handleProfileNameChange}
           onProfileHandleChange={handleProfileHandleChange}
           onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
           onProfileBioChange={handleProfileBioChange}
-          onSubmit={handleAuthSubmit}
           onGoogleSignIn={handleGoogleSignIn}
-          onChangePassword={handleChangePassword}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
         />
@@ -1049,10 +892,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   if (!currentUser || authMode === "reset") {
     return (
       <AuthPanel
-        mode={authMode}
-        email={authEmail}
-        password={authPassword}
-        changePassword={changePasswordValue}
         currentUser={currentUser}
         profileName={profileName}
         profileHandle={profileHandle}
@@ -1060,17 +899,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         profileBio={profileBio}
         loading={authLoading}
         message={authMessage}
-        onModeChange={setAuthMode}
-        onEmailChange={setAuthEmail}
-        onPasswordChange={setAuthPassword}
-        onChangePasswordValueChange={setChangePasswordValue}
         onProfileNameChange={handleProfileNameChange}
         onProfileHandleChange={handleProfileHandleChange}
         onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
         onProfileBioChange={handleProfileBioChange}
-        onSubmit={handleAuthSubmit}
         onGoogleSignIn={handleGoogleSignIn}
-        onChangePassword={handleChangePassword}
         onSaveProfile={handleSaveProfile}
         onSignOut={handleSignOut}
       />
@@ -1111,10 +944,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       ) : null}
 
       <AuthPanel
-        mode={authMode}
-        email={authEmail}
-        password={authPassword}
-        changePassword={changePasswordValue}
         currentUser={currentUser}
         profileName={profileName}
         profileHandle={profileHandle}
@@ -1122,17 +951,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         profileBio={profileBio}
         loading={authLoading}
         message={authMessage}
-        onModeChange={setAuthMode}
-        onEmailChange={setAuthEmail}
-        onPasswordChange={setAuthPassword}
-        onChangePasswordValueChange={setChangePasswordValue}
-          onProfileNameChange={handleProfileNameChange}
-          onProfileHandleChange={handleProfileHandleChange}
-          onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
-          onProfileBioChange={handleProfileBioChange}
-        onSubmit={handleAuthSubmit}
+        onProfileNameChange={handleProfileNameChange}
+        onProfileHandleChange={handleProfileHandleChange}
+        onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
+        onProfileBioChange={handleProfileBioChange}
         onGoogleSignIn={handleGoogleSignIn}
-        onChangePassword={handleChangePassword}
         onSaveProfile={handleSaveProfile}
         onSignOut={handleSignOut}
       />

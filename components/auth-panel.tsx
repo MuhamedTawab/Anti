@@ -5,10 +5,6 @@ import { KeyRound, LoaderCircle, LogOut, Mail, ShieldCheck } from "lucide-react"
 import type { AuthIdentity } from "@/lib/types";
 
 interface AuthPanelProps {
-  mode: "signin" | "signup" | "forgot" | "reset";
-  email: string;
-  password: string;
-  changePassword: string;
   currentUser: AuthIdentity | null;
   profileName: string;
   profileHandle: string;
@@ -16,33 +12,16 @@ interface AuthPanelProps {
   profileBio: string;
   loading: boolean;
   message: string | null;
-  onModeChange: (mode: "signin" | "signup" | "forgot" | "reset") => void;
-  onEmailChange: (value: string) => void;
-  onPasswordChange: (value: string) => void;
-  onChangePasswordValueChange: (value: string) => void;
   onProfileNameChange: (value: string) => void;
   onProfileHandleChange: (value: string) => void;
   onProfileAvatarUrlChange: (value: string) => void;
   onProfileBioChange: (value: string) => void;
-  onSubmit: () => void;
   onGoogleSignIn: () => void;
-  onChangePassword: () => void;
   onSaveProfile: () => void;
   onSignOut: () => void;
 }
 
-function submitLabel(mode: AuthPanelProps["mode"]) {
-  if (mode === "signin") return "Enter Nightlink";
-  if (mode === "signup") return "Create Account";
-  if (mode === "forgot") return "Send Reset Link";
-  return "Save New Password";
-}
-
 export function AuthPanel({
-  mode,
-  email,
-  password,
-  changePassword,
   currentUser,
   profileName,
   profileHandle,
@@ -50,17 +29,11 @@ export function AuthPanel({
   profileBio,
   loading,
   message,
-  onModeChange,
-  onEmailChange,
-  onPasswordChange,
-  onChangePasswordValueChange,
   onProfileNameChange,
   onProfileHandleChange,
   onProfileAvatarUrlChange,
   onProfileBioChange,
-  onSubmit,
   onGoogleSignIn,
-  onChangePassword,
   onSaveProfile,
   onSignOut
 }: AuthPanelProps) {
@@ -159,44 +132,11 @@ export function AuthPanel({
               Sign Out
             </button>
           </div>
-
-          <div className="flex w-full flex-col gap-3 lg:w-[360px]">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-white/35">
-              <KeyRound size={14} />
-              Change Password
-            </div>
-            <div className="flex gap-3">
-              <input
-                type="password"
-                value={changePassword}
-                onChange={(event) => onChangePasswordValueChange(event.target.value)}
-                placeholder="New password"
-                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onChangePassword();
-                  }
-                }}
-              />
-              <button
-                onClick={onChangePassword}
-                disabled={loading}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ember px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
-              >
-                {loading ? <LoaderCircle size={16} className="animate-spin" /> : null}
-                Update
-              </button>
-            </div>
-          </div>
         </div>
         </div>
       </section>
     );
   }
-
-  const isPasswordMode = mode === "signin" || mode === "signup" || mode === "reset";
-  const showGoogle = mode === "signin" || mode === "signup";
 
   return (
     <main className="min-h-screen px-4 py-4 text-white lg:px-6 lg:py-6">
@@ -243,114 +183,26 @@ export function AuthPanel({
 
         <section className="flex items-center">
           <div className="w-full rounded-[36px] border border-white/10 bg-panel/95 p-7 shadow-panel lg:p-9">
-            {mode !== "reset" ? (
-              <div className="mb-6 flex gap-2 rounded-2xl border border-white/10 bg-black/20 p-1">
-                <button
-                  onClick={() => onModeChange("signin")}
-                  className={`rounded-xl px-4 py-2 text-sm transition ${
-                    mode === "signin" ? "bg-ember text-white" : "text-white/55 hover:text-white"
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => onModeChange("signup")}
-                  className={`rounded-xl px-4 py-2 text-sm transition ${
-                    mode === "signup" ? "bg-ember text-white" : "text-white/55 hover:text-white"
-                  }`}
-                >
-                  Create Account
-                </button>
-              </div>
-            ) : null}
 
             <div className="mb-6">
               <p className="mb-2 text-xs uppercase tracking-[0.35em] text-ember/80">Nightlink Access</p>
               <h2 className="font-display text-3xl uppercase tracking-[0.08em] text-white">
-                {mode === "signin"
-                  ? "Sign In"
-                  : mode === "signup"
-                    ? "Create Account"
-                    : mode === "forgot"
-                      ? "Forgot Password"
-                      : "Reset Password"}
+                Sign In
               </h2>
               <p className="mt-3 max-w-md text-sm leading-6 text-white/50">
-                {mode === "signin"
-                  ? "Use your account to unlock Nightlink."
-                  : mode === "signup"
-                    ? "Create a free account first. After that, the whole app opens up."
-                    : mode === "forgot"
-                      ? "Enter your email and Nightlink will send you a reset link."
-                      : "Enter a new password to finish recovery and get back into the app."}
+                Use your Gmail account to unlock Nightlink securely.
               </p>
             </div>
 
             <div className="space-y-3">
-              {mode !== "reset" ? (
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => onEmailChange(event.target.value)}
-                  placeholder="Email"
-                  className="w-full rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-                />
-              ) : null}
-
-              {isPasswordMode ? (
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => onPasswordChange(event.target.value)}
-                  placeholder={mode === "reset" ? "New password" : "Password"}
-                  className="w-full rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      onSubmit();
-                    }
-                  }}
-                />
-              ) : null}
-
               <button
-                onClick={onSubmit}
+                onClick={onGoogleSignIn}
                 disabled={loading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ember px-5 py-3 text-sm font-semibold uppercase tracking-[0.1em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ember px-5 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
               >
-                {loading ? <LoaderCircle size={16} className="animate-spin" /> : null}
-                {submitLabel(mode)}
+                 {loading ? <LoaderCircle size={16} className="animate-spin" /> : <Mail size={16} />}
+                Continue With Google
               </button>
-
-              {showGoogle ? (
-                <button
-                  onClick={onGoogleSignIn}
-                  disabled={loading}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-steel px-5 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-blade disabled:cursor-not-allowed disabled:opacity-65"
-                >
-                  <Mail size={16} />
-                  Continue With Google
-                </button>
-              ) : null}
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-white/50">
-              {mode !== "forgot" && mode !== "reset" ? (
-                <button
-                  onClick={() => onModeChange("forgot")}
-                  className="transition hover:text-white"
-                >
-                  Forgot password?
-                </button>
-              ) : null}
-              {mode === "forgot" || mode === "reset" ? (
-                <button
-                  onClick={() => onModeChange("signin")}
-                  className="transition hover:text-white"
-                >
-                  Back to sign in
-                </button>
-              ) : null}
             </div>
 
             {message ? (

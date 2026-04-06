@@ -26,18 +26,10 @@ function mapUser(user: User | null): AuthIdentity | null {
 export interface AuthSyncResult {
   currentUser: AuthIdentity | null;
   accessToken: string | null;
-  authMode: "signin" | "signup" | "forgot" | "reset";
-  authEmail: string;
-  authPassword: string;
-  changePasswordValue: string;
   authLoading: boolean;
   authMessage: string | null;
   setCurrentUser: React.Dispatch<React.SetStateAction<AuthIdentity | null>>;
   setAccessToken: React.Dispatch<React.SetStateAction<string | null>>;
-  setAuthMode: React.Dispatch<React.SetStateAction<"signin" | "signup" | "forgot" | "reset">>;
-  setAuthEmail: React.Dispatch<React.SetStateAction<string>>;
-  setAuthPassword: React.Dispatch<React.SetStateAction<string>>;
-  setChangePasswordValue: React.Dispatch<React.SetStateAction<string>>;
   setAuthLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setAuthMessage: React.Dispatch<React.SetStateAction<string | null>>;
   getAuthHeaders: () => { Authorization: string } | null;
@@ -46,10 +38,6 @@ export interface AuthSyncResult {
 export function useAuthSync(supabase: SupabaseClient | null): AuthSyncResult {
   const [currentUser, setCurrentUser] = useState<AuthIdentity | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState<"signin" | "signup" | "forgot" | "reset">("signin");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [changePasswordValue, setChangePasswordValue] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
 
@@ -92,11 +80,6 @@ export function useAuthSync(supabase: SupabaseClient | null): AuthSyncResult {
         return nextUser;
       });
       setAccessToken(session?.access_token ?? null);
-
-      if (event === "PASSWORD_RECOVERY") {
-        setAuthMode("reset");
-        setAuthMessage("Recovery session detected. Set your new password now.");
-      }
     });
 
     return () => {
@@ -116,18 +99,10 @@ export function useAuthSync(supabase: SupabaseClient | null): AuthSyncResult {
   return {
     currentUser,
     accessToken,
-    authMode,
-    authEmail,
-    authPassword,
-    changePasswordValue,
     authLoading,
     authMessage,
     setCurrentUser,
     setAccessToken,
-    setAuthMode,
-    setAuthEmail,
-    setAuthPassword,
-    setChangePasswordValue,
     setAuthLoading,
     setAuthMessage,
     getAuthHeaders
