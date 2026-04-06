@@ -65,7 +65,14 @@ export function useAuthSync(supabase: SupabaseClient | null): AuthSyncResult {
         return;
       }
 
-      setCurrentUser(mapUser(data.session?.user ?? null));
+      setCurrentUser((prev) => {
+        const nextUser = mapUser(data.session?.user ?? null);
+        if (!nextUser) return null;
+        if (prev && prev.id === nextUser.id) {
+          return { ...nextUser, name: prev.name, handle: prev.handle, avatarUrl: prev.avatarUrl, bio: prev.bio };
+        }
+        return nextUser;
+      });
       setAccessToken(data.session?.access_token ?? null);
     });
 
@@ -76,7 +83,14 @@ export function useAuthSync(supabase: SupabaseClient | null): AuthSyncResult {
         return;
       }
 
-      setCurrentUser(mapUser(session?.user ?? null));
+      setCurrentUser((prev) => {
+        const nextUser = mapUser(session?.user ?? null);
+        if (!nextUser) return null;
+        if (prev && prev.id === nextUser.id) {
+          return { ...nextUser, name: prev.name, handle: prev.handle, avatarUrl: prev.avatarUrl, bio: prev.bio };
+        }
+        return nextUser;
+      });
       setAccessToken(session?.access_token ?? null);
 
       if (event === "PASSWORD_RECOVERY") {

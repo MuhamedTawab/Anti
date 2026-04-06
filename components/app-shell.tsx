@@ -64,10 +64,18 @@ function mapUser(user: User | null): AuthIdentity | null {
 }
 
 function mergeMessage(messages: Message[], nextMessage: Message) {
-  if (messages.some((message) => message.id === nextMessage.id)) {
-    return messages;
+  const existingIndex = messages.findIndex((message) => message.id === nextMessage.id);
+  if (existingIndex !== -1) {
+    const existing = messages[existingIndex];
+    const newArray = [...messages];
+    newArray[existingIndex] = {
+      ...existing,
+      ...nextMessage,
+      authorAvatarUrl: nextMessage.authorAvatarUrl ?? existing.authorAvatarUrl,
+      author: nextMessage.author ?? existing.author
+    };
+    return newArray;
   }
-
   return [...messages, nextMessage];
 }
 
