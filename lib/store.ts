@@ -63,19 +63,16 @@ interface StoreState {
 }
 
 function getStore(): StoreState {
-  if (!(globalThis as any).__NIGHTLINK_STORE) {
-    (globalThis as any).__NIGHTLINK_STORE = {
-      servers: structuredClone(serverSeed),
-      messages: structuredClone(messageSeed),
-      members: structuredClone(memberSeed),
-      friends: [] as Friend[],
-      incomingRequests: [] as FriendRequest[],
-      outgoingRequests: [] as FriendRequest[],
-      directThreads: [] as DirectThread[],
-      directMessages: {} as Record<string, Message[]>
-    };
-  }
-  return (globalThis as any).__NIGHTLINK_STORE;
+  return {
+    servers: structuredClone(serverSeed),
+    messages: structuredClone(messageSeed),
+    members: structuredClone(memberSeed),
+    friends: [] as Friend[],
+    incomingRequests: [] as FriendRequest[],
+    outgoingRequests: [] as FriendRequest[],
+    directThreads: [] as DirectThread[],
+    directMessages: {} as Record<string, Message[]>
+  };
 }
 
 function formatTimestamp(date: Date) {
