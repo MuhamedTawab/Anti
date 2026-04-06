@@ -69,7 +69,8 @@ export function useWorkspaceData(
   initialData: BootstrapPayload,
   currentUser: AuthIdentity | null,
   accessToken: string | null,
-  getAuthHeaders: () => { Authorization: string } | null
+  getAuthHeaders: () => { Authorization: string } | null,
+  setCurrentUser: React.Dispatch<React.SetStateAction<AuthIdentity | null>>
 ): WorkspaceDataResult {
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
@@ -138,13 +139,14 @@ export function useWorkspaceData(
       // Profile is returned by the API with the resolved DB row
       // We forward this to the parent so currentUser is always in sync
       if (profilePayload?.profile) {
-        // Caller responsible for updating currentUser from this — here we just update draft
-        setProfileName(profilePayload.profile.name);
-        setProfileHandle(profilePayload.profile.handle);
-        setProfileAvatarUrl(profilePayload.profile.avatarUrl ?? "");
-        setProfileBio(profilePayload.profile.bio ?? "");
-        lastProfileSyncRef.current = profileSnapshotKey(profilePayload.profile);
-        profileDraftDirtyRef.current = false;
+        if (!profileDraftDirtyRef.current) {
+          setProfileName(profilePayload.profile.name);
+          setProfileHandle(profilePayload.profile.handle);
+          setProfileAvatarUrl(profilePayload.profile.avatarUrl ?? "");
+          setProfileBio(profilePayload.profile.bio ?? "");
+          lastProfileSyncRef.current = profileSnapshotKey(profilePayload.profile);
+        }
+        setCurrentUser(profilePayload.profile);
       }
 
       const [bootstrapResponse, socialResponse] = await Promise.all([
@@ -207,8 +209,13 @@ export function useWorkspaceData(
 
     const nextSnapshot = profileSnapshotKey(currentUser);
 
-    if (profileDraftDirtyRef.current && lastProfileSyncRef.current === nextSnapshot) {
-      return;
+    // If the draft is dirty, NEVER overwrite it unless the user literally changed accounts
+    if (profileDraftDirtyRef.current) {
+      if (lastProfileSyncRef.current && !lastProfileSyncRef.current.includes(currentUser.id)) {
+        profileDraftDirtyRef.current = false;
+      } else {
+        return;
+      }
     }
 
     if (!profileDraftDirtyRef.current || lastProfileSyncRef.current !== nextSnapshot) {

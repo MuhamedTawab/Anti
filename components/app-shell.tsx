@@ -156,7 +156,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setProfileBio,
     profileDraftDirtyRef,
     lastProfileSyncRef
-  } = useWorkspaceData(initialData, currentUser, accessToken, getAuthHeaders);
+  } = useWorkspaceData(initialData, currentUser, accessToken, getAuthHeaders, setCurrentUser);
 
   const activeThread = useMemo(
     () => socialData.directThreads.find((thread) => thread.id === activeThreadId) ?? null,
