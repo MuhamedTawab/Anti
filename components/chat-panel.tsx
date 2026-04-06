@@ -24,7 +24,7 @@ export function ChatPanel({
   onSend: () => void;
 }) {
   return (
-    <section className="flex min-w-0 flex-1 flex-col rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur">
+    <section className="flex h-full min-w-0 min-h-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">
@@ -43,7 +43,7 @@ export function ChatPanel({
         </div>
       </header>
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+      <div className="flex-1 min-h-0 space-y-5 overflow-y-auto px-6 py-6">
         {items.map((message) => (
           <article
             key={message.id}

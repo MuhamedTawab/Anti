@@ -59,7 +59,7 @@ export function ChannelList({
   const voiceChannels = server.channels.filter((channel) => channel.kind === "voice");
 
   return (
-    <section className="flex w-[300px] flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur">
+    <section className="flex h-full w-[300px] min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">{server.name}</p>
@@ -80,31 +80,32 @@ export function ChannelList({
         </p>
       </div>
 
-      <div className="space-y-2">
-        <p className="px-2 text-xs uppercase tracking-[0.28em] text-white/35">Text</p>
-        {textChannels.map((channel) => (
-          <ChannelRow
-            key={channel.id}
-            channel={channel}
-            active={channel.id === activeChannelId}
-            onClick={onTextSelect}
-          />
-        ))}
-      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="space-y-2">
+          <p className="px-2 text-xs uppercase tracking-[0.28em] text-white/35">Text</p>
+          {textChannels.map((channel) => (
+            <ChannelRow
+              key={channel.id}
+              channel={channel}
+              active={channel.id === activeChannelId}
+              onClick={onTextSelect}
+            />
+          ))}
+        </div>
 
-      <div className="mt-6 space-y-2">
-        <p className="px-2 text-xs uppercase tracking-[0.28em] text-white/35">Voice</p>
-        {voiceChannels.map((channel) => (
-          <ChannelRow
-            key={channel.id}
-            channel={channel}
-            active={channel.id === activeVoiceChannelId}
-            onClick={onVoiceSelect}
-          />
-        ))}
-      </div>
+        <div className="mt-6 space-y-2">
+          <p className="px-2 text-xs uppercase tracking-[0.28em] text-white/35">Voice</p>
+          {voiceChannels.map((channel) => (
+            <ChannelRow
+              key={channel.id}
+              channel={channel}
+              active={channel.id === activeVoiceChannelId}
+              onClick={onVoiceSelect}
+            />
+          ))}
+        </div>
 
-      <div className="mt-6">
+        <div className="mt-6">
         <div className="mb-3 flex items-center gap-2 px-2 text-xs uppercase tracking-[0.28em] text-white/35">
           <Users size={13} />
           <span>Online</span>
@@ -134,6 +135,7 @@ export function ChannelList({
               No members online yet.
             </div>
           )}
+        </div>
         </div>
       </div>
     </section>
