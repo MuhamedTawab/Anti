@@ -15,7 +15,8 @@ export function SocialPanel({
   onFriendEmailChange,
   onSendRequest,
   onRespondRequest,
-  onOpenThread
+  onOpenThread,
+  unreadCounts
 }: {
   friends: Friend[];
   incomingRequests: FriendRequest[];
@@ -28,6 +29,7 @@ export function SocialPanel({
   onSendRequest: () => void;
   onRespondRequest: (requestId: string, action: "accept" | "decline") => void;
   onOpenThread: (threadId: string) => void;
+  unreadCounts?: Record<string, number>;
 }) {
   return (
     <div className="mt-6 space-y-4">
@@ -138,7 +140,6 @@ export function SocialPanel({
       </div>
 
       <div className="space-y-2">
-        <p className="px-2 text-xs uppercase tracking-[0.28em] text-white/35">Direct Messages</p>
         {directThreads.length ? (
           directThreads.map((thread) => (
             <button
@@ -150,11 +151,29 @@ export function SocialPanel({
                   : "border border-white/10 bg-black/15 text-white/75 hover:bg-black/20 hover:text-white"
               }`}
             >
-              <div>
-                <p className="text-sm font-medium">{thread.friendName}</p>
-                <p className="mt-1 text-xs text-white/40">{thread.lastMessage ?? "No messages yet"}</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/5">
+                  {thread.friendAvatarUrl ? (
+                    <img src={thread.friendAvatarUrl} alt={thread.friendName} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="font-display text-xs font-bold text-white/40">
+                      {thread.friendName.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{thread.friendName}</p>
+                    {unreadCounts?.[thread.id] ? (
+                      <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-ember px-1 text-[10px] font-bold text-white shadow-sm">
+                        {unreadCounts[thread.id] > 99 ? "99+" : unreadCounts[thread.id]}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-xs text-white/40">{thread.lastMessage ?? "No messages yet"}</p>
+                </div>
               </div>
-              <Send size={14} />
+              <Send size={14} className={activeThreadId === thread.id ? "text-ember" : "text-white/20"} />
             </button>
           ))
         ) : (
