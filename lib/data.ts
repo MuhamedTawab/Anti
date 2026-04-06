@@ -1036,7 +1036,7 @@ export async function createServer(identity: AuthIdentity, name: string) {
     initials: getInitials(trimmed),
     accent: accentChoices[Math.floor(Math.random() * accentChoices.length)],
     owner_id: identity.id,
-    sort_order: Date.now()
+    sort_order: Math.floor(Date.now() / 1000)
   }).throwOnError();
 
   await supabase.from("server_memberships").upsert({
