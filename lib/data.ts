@@ -457,7 +457,7 @@ export async function addMessage(
     .single();
 
   if (error || !data) {
-    return addMemoryMessage(channelId, body, identity);
+    throw new Error(error?.message ?? "Could not save message.");
   }
 
   const attachments = trimmedAttachment
@@ -972,7 +972,7 @@ export async function addDirectMessage(
     .single();
 
   if (error || !data) {
-    return addMemoryDirectMessage(threadId, body, identity);
+    throw new Error(error?.message ?? "Could not save direct message.");
   }
 
   const attachments = trimmedAttachment
