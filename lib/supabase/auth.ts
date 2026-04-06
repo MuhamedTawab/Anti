@@ -35,8 +35,9 @@ function formatIdentity(user: {
 }
 
 /**
- * Derives the authenticated identity exclusively from a verified Supabase JWT.
- * Never trusts client-supplied identity headers — those are forgeable.
+ * Derives the authenticated identity exclusively from a verified Supabase JWT,
+ * then enriches it with the user's saved profile (name, handle, avatarUrl) from
+ * the profiles table so that custom display names are always used.
  */
 export async function getAuthenticatedIdentity(request: NextRequest) {
   if (!hasSupabasePublicEnv()) {
@@ -66,5 +67,25 @@ export async function getAuthenticatedIdentity(request: NextRequest) {
     return null;
   }
 
-  return formatIdentity(data.user);
+  // Start with JWT-derived identity as a safe fallback
+  const jwtIdentity = formatIdentity(data.user);
+
+  // Enrich with the actual profile row so custom name/handle/avatar are used
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name,handle,avatar_url,bio")
+    .eq("id", jwtIdentity.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return jwtIdentity;
+  }
+
+  return {
+    ...jwtIdentity,
+    name: profile.name ?? jwtIdentity.name,
+    handle: profile.handle ?? jwtIdentity.handle,
+    avatarUrl: profile.avatar_url ?? null,
+    bio: profile.bio ?? undefined
+  };
 }
