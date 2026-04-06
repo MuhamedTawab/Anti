@@ -34,31 +34,11 @@ function formatIdentity(user: {
   };
 }
 
-function getHeaderIdentity(request: NextRequest): AuthIdentity | null {
-  const id = request.headers.get("x-nightlink-user-id");
-  const email = request.headers.get("x-nightlink-user-email");
-  const name = request.headers.get("x-nightlink-user-name");
-  const handle = request.headers.get("x-nightlink-user-handle");
-
-  if (!id || !email || !name || !handle) {
-    return null;
-  }
-
-  return {
-    id,
-    email,
-    name,
-    handle
-  };
-}
-
+/**
+ * Derives the authenticated identity exclusively from a verified Supabase JWT.
+ * Never trusts client-supplied identity headers — those are forgeable.
+ */
 export async function getAuthenticatedIdentity(request: NextRequest) {
-  const headerIdentity = getHeaderIdentity(request);
-
-  if (headerIdentity) {
-    return headerIdentity;
-  }
-
   if (!hasSupabasePublicEnv()) {
     return null;
   }

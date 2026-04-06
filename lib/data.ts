@@ -303,14 +303,15 @@ export async function getBootstrap(identity?: AuthIdentity): Promise<BootstrapPa
 
   const servers = (await getAccessibleServers(identity)) ?? getMemoryBootstrap().servers;
   const normalizedServers = servers.length ? servers : getMemoryBootstrap().servers;
-  const channelIds = normalizedServers.flatMap((server) => server.channels.map((channel) => channel.id));
+  const primaryChannelId = normalizedServers[0]?.channels.find((c) => c.kind === "text")?.id ?? normalizedServers[0]?.channels[0]?.id;
 
-  const { data: messageRows } = channelIds.length
+  const { data: messageRowsRaw } = primaryChannelId
     ? await supabase
         .from("messages")
         .select("id,channel_id,author_id,author,handle,body,timestamp")
-        .in("channel_id", channelIds)
-        .order("created_at", { ascending: true })
+        .eq("channel_id", primaryChannelId)
+        .order("created_at", { ascending: false })
+        .limit(50)
     : {
         data: [] as Array<{
           id: string;
@@ -323,6 +324,8 @@ export async function getBootstrap(identity?: AuthIdentity): Promise<BootstrapPa
         }>
       };
 
+  const messageRows = messageRowsRaw?.reverse() ?? [];
+
   const profileMap = await getProfileRows(
     Array.from(new Set((messageRows ?? []).flatMap((row) => (row.author_id ? [row.author_id] : []))))
   );
@@ -331,7 +334,7 @@ export async function getBootstrap(identity?: AuthIdentity): Promise<BootstrapPa
     "message_attachments",
     "message_id"
   );
-  const channelServerMap = await getChannelServerMap(channelIds);
+  const channelServerMap = await getChannelServerMap(primaryChannelId ? [primaryChannelId] : []);
   const ownerServerIds = new Set(
     normalizedServers.filter((server) => server.role === "owner").map((server) => server.id)
   );
@@ -339,8 +342,8 @@ export async function getBootstrap(identity?: AuthIdentity): Promise<BootstrapPa
   const messages: Record<string, Message[]> = {};
   const members: Record<string, Member[]> = {};
 
-  for (const channelId of channelIds) {
-    messages[channelId] = [];
+  if (primaryChannelId) {
+    messages[primaryChannelId] = [];
   }
 
   for (const row of messageRows ?? []) {

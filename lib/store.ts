@@ -51,16 +51,32 @@ const memberSeed: Record<string, Member[]> = {
   "listening-room": []
 };
 
-const store = {
-  servers: structuredClone(serverSeed),
-  messages: structuredClone(messageSeed),
-  members: structuredClone(memberSeed),
-  friends: [] as Friend[],
-  incomingRequests: [] as FriendRequest[],
-  outgoingRequests: [] as FriendRequest[],
-  directThreads: [] as DirectThread[],
-  directMessages: {} as Record<string, Message[]>
-};
+interface StoreState {
+  servers: Server[];
+  messages: Record<string, Message[]>;
+  members: Record<string, Member[]>;
+  friends: Friend[];
+  incomingRequests: FriendRequest[];
+  outgoingRequests: FriendRequest[];
+  directThreads: DirectThread[];
+  directMessages: Record<string, Message[]>;
+}
+
+function getStore(): StoreState {
+  if (!(globalThis as any).__NIGHTLINK_STORE) {
+    (globalThis as any).__NIGHTLINK_STORE = {
+      servers: structuredClone(serverSeed),
+      messages: structuredClone(messageSeed),
+      members: structuredClone(memberSeed),
+      friends: [] as Friend[],
+      incomingRequests: [] as FriendRequest[],
+      outgoingRequests: [] as FriendRequest[],
+      directThreads: [] as DirectThread[],
+      directMessages: {} as Record<string, Message[]>
+    };
+  }
+  return (globalThis as any).__NIGHTLINK_STORE;
+}
 
 function formatTimestamp(date: Date) {
   return date.toLocaleTimeString([], {
@@ -71,11 +87,11 @@ function formatTimestamp(date: Date) {
 }
 
 export function getBootstrap(): BootstrapPayload {
-  return structuredClone(store);
+  return structuredClone(getStore());
 }
 
 export function getMessages(channelId: string): Message[] {
-  return structuredClone(store.messages[channelId] ?? []);
+  return structuredClone(getStore().messages[channelId] ?? []);
 }
 
 export function addMessage(
@@ -98,17 +114,17 @@ export function addMessage(
     timestamp: formatTimestamp(new Date())
   };
 
-  if (!store.messages[channelId]) {
-    store.messages[channelId] = [];
+  if (!getStore().messages[channelId]) {
+    getStore().messages[channelId] = [];
   }
 
-  store.messages[channelId].push(message);
+  getStore().messages[channelId].push(message);
 
   return structuredClone(message);
 }
 
 export function getVoiceMembers(roomId: string): Member[] {
-  return structuredClone(store.members[roomId] ?? []);
+  return structuredClone(getStore().members[roomId] ?? []);
 }
 
 export function ensureProfile(identity: AuthIdentity) {
@@ -117,10 +133,10 @@ export function ensureProfile(identity: AuthIdentity) {
 
 export function getSocialData(): SocialPayload {
   return structuredClone({
-    friends: store.friends,
-    incomingRequests: store.incomingRequests,
-    outgoingRequests: store.outgoingRequests,
-    directThreads: store.directThreads
+    friends: getStore().friends,
+    incomingRequests: getStore().incomingRequests,
+    outgoingRequests: getStore().outgoingRequests,
+    directThreads: getStore().directThreads
   });
 }
 
@@ -133,7 +149,7 @@ export function respondToFriendRequest(_identity: AuthIdentity, _requestId: stri
 }
 
 export function getDirectMessages(threadId: string) {
-  return structuredClone(store.directMessages[threadId] ?? []);
+  return structuredClone(getStore().directMessages[threadId] ?? []);
 }
 
 export function addDirectMessage(threadId: string, body: string, identity: AuthIdentity) {
@@ -152,10 +168,10 @@ export function addDirectMessage(threadId: string, body: string, identity: AuthI
     timestamp: formatTimestamp(new Date())
   };
 
-  if (!store.directMessages[threadId]) {
-    store.directMessages[threadId] = [];
+  if (!getStore().directMessages[threadId]) {
+    getStore().directMessages[threadId] = [];
   }
 
-  store.directMessages[threadId].push(message);
+  getStore().directMessages[threadId].push(message);
   return structuredClone(message);
 }
