@@ -68,6 +68,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
   const remoteAudioRef = useRef<Record<string, HTMLAudioElement>>({});
+  const localAnalyserRef = useRef<AnalyserNode | null>(null);
+  const remoteAnalyserRefs = useRef<Record<string, AnalyserNode>>({});
+  const audioSourceRefs = useRef<Record<string, MediaStreamAudioSourceNode>>({});
+  const signalRafRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const [data, setData] = useState(initialData);
   const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
@@ -94,6 +98,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [isMuted, setIsMuted] = useState(false);
   const [isPushToTalk, setIsPushToTalk] = useState(false);
   const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
+  const [signalLevels, setSignalLevels] = useState([14, 18, 12, 22, 16, 24, 13, 19, 15, 21]);
   const [presenceMembers, setPresenceMembers] = useState<Record<string, AuthIdentity & { roomId: string | null; serverId: string }>>({});
   const [typingMembers, setTypingMembers] = useState<Record<string, { name: string; channelId: string; expiresAt: number }>>({});
   const [socialData, setSocialData] = useState<SocialPayload>({
@@ -190,6 +195,71 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
       startAt += tone.duration * 0.75;
     });
+  }
+
+  function getAudioContext() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as typeof window & {
+      webkitAudioContext?: typeof AudioContext;
+    }).webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return null;
+    }
+
+    const context = audioContextRef.current ?? new AudioContextClass();
+    audioContextRef.current = context;
+    return context;
+  }
+
+  function measureAnalyserLevel(analyser: AnalyserNode | null) {
+    if (!analyser) {
+      return 0;
+    }
+
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+
+    let total = 0;
+    for (const value of data) {
+      total += Math.abs(value - 128);
+    }
+
+    return Math.min(1, total / data.length / 36);
+  }
+
+  function attachAnalyser(stream: MediaStream, key: string) {
+    const context = getAudioContext();
+
+    if (!context) {
+      return null;
+    }
+
+    if (context.state === "suspended") {
+      void context.resume().catch(() => null);
+    }
+
+    audioSourceRefs.current[key]?.disconnect();
+
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 64;
+    analyser.smoothingTimeConstant = 0.82;
+
+    const source = context.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    audioSourceRefs.current[key] = source;
+
+    if (key === "local") {
+      localAnalyserRef.current = analyser;
+    } else {
+      remoteAnalyserRefs.current[key] = analyser;
+    }
+
+    return analyser;
   }
 
   function syncLocalAudioTracks() {
@@ -659,6 +729,39 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     };
   }, [activeChatKey, currentUser, viewMode]);
 
+  useEffect(() => {
+    let frame = 0;
+
+    function tick() {
+      const localLevel = measureAnalyserLevel(localAnalyserRef.current);
+      const remoteLevels = Object.values(remoteAnalyserRefs.current).map((analyser) =>
+        measureAnalyserLevel(analyser)
+      );
+      const roomLevel = Math.max(localLevel, ...remoteLevels, joinedVoiceRoomId ? 0.08 : 0.02);
+      const idleWave = Date.now() / 240;
+
+      setSignalLevels((current) =>
+        current.map((_, index) => {
+          const wave = (Math.sin(idleWave + index * 0.72) + 1) / 2;
+          const emphasis = index % 3 === 0 ? 1.16 : index % 2 === 0 ? 0.94 : 0.82;
+          const height = 12 + wave * 16 + roomLevel * 54 * emphasis;
+          return Math.max(10, Math.min(82, Math.round(height)));
+        })
+      );
+
+      frame = window.requestAnimationFrame(tick);
+      signalRafRef.current = frame;
+    }
+
+    frame = window.requestAnimationFrame(tick);
+    signalRafRef.current = frame;
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      signalRafRef.current = null;
+    };
+  }, [joinedVoiceRoomId]);
+
   const activeServer = useMemo(
     () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0],
     [activeServerId, data.servers]
@@ -726,14 +829,21 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     delete peerConnectionsRef.current[remoteUserId];
     remoteAudioRef.current[remoteUserId]?.pause();
     delete remoteAudioRef.current[remoteUserId];
+    audioSourceRefs.current[remoteUserId]?.disconnect();
+    delete audioSourceRefs.current[remoteUserId];
+    delete remoteAnalyserRefs.current[remoteUserId];
   }
 
   function cleanupVoiceSession() {
     Object.keys(peerConnectionsRef.current).forEach(cleanupPeer);
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
+    audioSourceRefs.current.local?.disconnect();
+    delete audioSourceRefs.current.local;
+    localAnalyserRef.current = null;
     setIsMuted(false);
     setIsPushToTalkActive(false);
+    setSignalLevels([14, 18, 12, 22, 16, 24, 13, 19, 15, 21]);
   }
 
   async function sendVoiceSignal(payload: Record<string, unknown>) {
@@ -818,6 +928,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       const existingAudio = remoteAudioRef.current[remoteUserId];
       if (existingAudio) {
         existingAudio.srcObject = stream;
+        attachAnalyser(stream, remoteUserId);
         void existingAudio.play().catch(() => null);
         return;
       }
@@ -826,6 +937,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       audio.autoplay = true;
       audio.srcObject = stream;
       remoteAudioRef.current[remoteUserId] = audio;
+      attachAnalyser(stream, remoteUserId);
       void audio.play().catch(() => null);
     };
 
@@ -1172,6 +1284,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         },
         video: false
       });
+      attachAnalyser(localStreamRef.current, "local");
       syncLocalAudioTracks();
 
       const response = await fetch("/api/voice/session", {
@@ -1517,6 +1630,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           connecting={isVoiceConnecting}
           pushToTalk={isPushToTalk}
           transmitting={isPushToTalk && isPushToTalkActive && !isMuted}
+          signalLevels={signalLevels}
           participants={activeMembers.length}
           onToggleJoin={handleVoiceToggle}
           onToggleMute={handleToggleMute}

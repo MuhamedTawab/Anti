@@ -17,6 +17,7 @@ export function VoicePanel({
   connecting,
   pushToTalk,
   transmitting,
+  signalLevels,
   participants,
   onToggleJoin,
   onToggleMute,
@@ -29,6 +30,7 @@ export function VoicePanel({
   connecting: boolean;
   pushToTalk: boolean;
   transmitting: boolean;
+  signalLevels: number[];
   participants: number;
   onToggleJoin: () => void;
   onToggleMute: () => void;
@@ -52,11 +54,11 @@ export function VoicePanel({
           <span>Signal Feed</span>
         </div>
         <div className="flex items-end gap-2">
-          {[16, 22, 12, 28, 18, 24, 14, 19].map((height, index) => (
+          {signalLevels.map((height, index) => (
             <span
               key={index}
-              className="w-3 rounded-full bg-gradient-to-t from-ember via-violet-500 to-sea"
-              style={{ height }}
+              className="w-3 rounded-full bg-gradient-to-t from-ember via-violet-500 to-sea transition-[height] duration-100 ease-out"
+              style={{ height: `${height}px` }}
             />
           ))}
         </div>
