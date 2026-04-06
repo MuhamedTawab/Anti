@@ -38,7 +38,7 @@ export function ChatPanel({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [items.length, channelName]);
+  }, [items]);
 
   return (
     <section className="flex h-[75vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[85vh]">

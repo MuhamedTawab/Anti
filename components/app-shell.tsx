@@ -1077,7 +1077,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
             friendEmail={friendEmail}
             activeThreadId={activeThreadId}
             onlineFriendIds={onlineFriendIds}
-            unreadCounts={unreadCounts}
             onFriendEmailChange={setFriendEmail}
             onSendRequest={handleSendFriendRequest}
             onRespondRequest={handleRespondFriendRequest}
