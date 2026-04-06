@@ -63,10 +63,6 @@ export interface WorkspaceDataResult {
   setProfileBio: React.Dispatch<React.SetStateAction<string>>;
   profileDraftDirtyRef: React.MutableRefObject<boolean>;
   lastProfileSyncRef: React.MutableRefObject<string | null>;
-  unreadCounts: Record<string, number>;
-  setUnreadCounts: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  updateReadReceipt: (channelId: string) => void;
-  getLocalReadReceipts: () => Record<string, string>;
 }
 
 export function useWorkspaceData(
@@ -97,30 +93,6 @@ export function useWorkspaceData(
   const [profileBio, setProfileBio] = useState("");
   const profileDraftDirtyRef = useRef(false);
   const lastProfileSyncRef = useRef<string | null>(null);
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-
-  function getLocalReadReceipts(): Record<string, string> {
-    if (typeof window === "undefined") return {};
-    try {
-      const stored = localStorage.getItem("nightlink_read_receipts");
-      return stored ? JSON.parse(stored) : {};
-    } catch {
-      return {};
-    }
-  }
-
-  function updateReadReceipt(channelId: string) {
-    if (typeof window === "undefined") return;
-    try {
-      const receipts = getLocalReadReceipts();
-      const now = new Date().toISOString();
-      receipts[channelId] = now;
-      localStorage.setItem("nightlink_read_receipts", JSON.stringify(receipts));
-      setUnreadCounts((prev) => ({ ...prev, [channelId]: 0 }));
-    } catch {
-      // Ignore localStorage errors
-    }
-  }
 
   // Initial anonymous bootstrap load
   useEffect(() => {
@@ -278,10 +250,6 @@ export function useWorkspaceData(
     setProfileAvatarUrl,
     setProfileBio,
     profileDraftDirtyRef,
-    lastProfileSyncRef,
-    unreadCounts,
-    setUnreadCounts,
-    updateReadReceipt,
-    getLocalReadReceipts
+    lastProfileSyncRef
   };
 }
