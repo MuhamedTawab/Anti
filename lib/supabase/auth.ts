@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 import { hasSupabasePublicEnv } from "@/lib/env";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { AuthIdentity } from "@/lib/types";
 
 function getTokenFromRequest(request: NextRequest) {
@@ -70,8 +71,14 @@ export async function getAuthenticatedIdentity(request: NextRequest) {
   // Start with JWT-derived identity as a safe fallback
   const jwtIdentity = formatIdentity(data.user);
 
-  // Enrich with the actual profile row so custom name/handle/avatar are used
-  const { data: profile } = await supabase
+  // Enrich with the actual profile row using the service-role client (bypasses RLS)
+  // so custom name/handle/avatar are always used when saving messages.
+  const serviceClient = getSupabaseServerClient();
+  if (!serviceClient) {
+    return jwtIdentity;
+  }
+
+  const { data: profile } = await serviceClient
     .from("profiles")
     .select("name,handle,avatar_url,bio")
     .eq("id", jwtIdentity.id)
