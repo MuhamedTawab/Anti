@@ -1729,7 +1729,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <section>
         <div className="rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel">
           <SocialPanel
             friends={socialData.friends}
@@ -1745,93 +1745,6 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
             onOpenThread={handleOpenThread}
           />
         </div>
-        <section
-          className="relative overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 p-6 shadow-panel backdrop-blur"
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,59,95,0.18),transparent_22%),radial-gradient(circle_at_bottom_right,rgba(123,246,255,0.12),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.03),transparent_50%)]" />
-          <div className="relative grid h-full gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <div
-              className="flex flex-col justify-between rounded-[28px] border border-white/10 bg-black/20 p-6 transition"
-              style={{
-                boxShadow:
-                  roomActivityLevel > 0.05
-                    ? `0 0 ${18 + roomActivityLevel * 36}px rgba(123,246,255,${0.08 + roomActivityLevel * 0.18})`
-                    : undefined
-              }}
-            >
-              <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-ember/75">Nightlink Atmosphere</p>
-                <h3 className="mt-4 font-display text-4xl uppercase tracking-[0.08em] text-white">
-                  Quiet signal.
-                  <br />
-                  Sharp focus.
-                </h3>
-                <p className="mt-4 max-w-xl text-sm leading-7 text-white/55">
-                  A cleaner control zone for squads that want the energy of late-night gaming without noisy clutter.
-                </p>
-              </div>
-
-              <div className="mt-8 flex items-center gap-3">
-                <span className="rounded-full border border-ember/20 bg-ember/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-ember">
-                  Tactical
-                </span>
-                <span
-                  className={roomActivityLevel > 0.05
-                    ? "rounded-full border border-sea/20 bg-sea/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-sea"
-                    : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.24em] text-white/65"}
-                >
-                  {roomActivityLevel > 0.05 ? "Live Room" : "Minimal"}
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.24em] text-white/65">
-                  Squad UI
-                </span>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
-              <div className="rounded-[28px] border border-white/10 bg-black/20 p-5">
-                <p className="text-xs uppercase tracking-[0.28em] text-white/35">Pulse</p>
-                <div className="mt-4 flex items-end gap-2">
-                  {signalLevels.map((height, index) => (
-                    <span
-                      key={index}
-                      className="w-full rounded-full bg-gradient-to-t from-ember via-[#ff8c70] to-sea/80 transition-[height] duration-100 ease-out"
-                      style={{ height: `${Math.max(18, Math.round(height * 0.92))}px` }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-white/10 bg-black/20 p-5">
-                <p className="text-xs uppercase tracking-[0.28em] text-white/35">Scene</p>
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                  <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-ember/20 to-transparent p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/45">Latency</p>
-                    <p className="mt-3 font-display text-2xl uppercase text-white">
-                      {voiceConnectionStatus === "reconnecting"
-                        ? "Retry"
-                        : voiceConnectionStatus === "failed"
-                          ? "Drop"
-                          : "Low"}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-sea/20 to-transparent p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/45">Noise</p>
-                    <p className="mt-3 font-display text-2xl uppercase text-white">
-                      {roomActivityLevel > 0.08 ? "Hot" : "Clean"}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-transparent p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/45">Mode</p>
-                    <p className="mt-3 font-display text-2xl uppercase text-white">
-                      {joinedVoiceRoomId ? "Live" : "Night"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </section>
     </div>
   );
