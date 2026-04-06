@@ -96,9 +96,16 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [isSending, setIsSending] = useState(false);
   const [isVoiceConnecting, setIsVoiceConnecting] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
   const [isPushToTalk, setIsPushToTalk] = useState(false);
   const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
+  const [voiceConnectionStatus, setVoiceConnectionStatus] = useState<
+    "idle" | "connecting" | "connected" | "reconnecting" | "failed"
+  >("idle");
+  const [outputVolume, setOutputVolume] = useState(0.82);
   const [signalLevels, setSignalLevels] = useState([14, 18, 12, 22, 16, 24, 13, 19, 15, 21]);
+  const [participantLevels, setParticipantLevels] = useState<Record<string, number>>({});
+  const [roomActivityLevel, setRoomActivityLevel] = useState(0);
   const [presenceMembers, setPresenceMembers] = useState<Record<string, AuthIdentity & { roomId: string | null; serverId: string }>>({});
   const [typingMembers, setTypingMembers] = useState<Record<string, { name: string; channelId: string; expiresAt: number }>>({});
   const [socialData, setSocialData] = useState<SocialPayload>({
@@ -271,9 +278,20 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     });
   }
 
+  function syncRemoteAudioPlayback() {
+    Object.values(remoteAudioRef.current).forEach((audio) => {
+      audio.muted = isDeafened;
+      audio.volume = outputVolume;
+    });
+  }
+
   useEffect(() => {
     syncLocalAudioTracks();
   }, [isMuted, isPushToTalk, isPushToTalkActive, joinedVoiceRoomId]);
+
+  useEffect(() => {
+    syncRemoteAudioPlayback();
+  }, [isDeafened, outputVolume, joinedVoiceRoomId]);
 
   useEffect(() => {
     if (!joinedVoiceRoomId || !isPushToTalk) {
@@ -734,13 +752,36 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     const idleLevels = [14, 18, 12, 22, 16, 24, 13, 19, 15, 21];
 
     function tick() {
+      const liveLevels: Record<string, number> = {};
       const localLevel = measureAnalyserLevel(localAnalyserRef.current);
-      const remoteLevels = Object.values(remoteAnalyserRefs.current).map((analyser) =>
-        measureAnalyserLevel(analyser)
-      );
-      const roomLevel = Math.max(localLevel, ...remoteLevels, 0);
+      if (currentUser?.id) {
+        liveLevels[currentUser.id] = localLevel;
+      }
 
-      if (roomLevel < 0.035) {
+      Object.entries(remoteAnalyserRefs.current).forEach(([userId, analyser]) => {
+        liveLevels[userId] = measureAnalyserLevel(analyser);
+      });
+
+      let nextRoomLevel = 0;
+
+      setParticipantLevels((current) => {
+        const next: Record<string, number> = {};
+        const keys = new Set([...Object.keys(current), ...Object.keys(liveLevels)]);
+
+        keys.forEach((key) => {
+          const measured = liveLevels[key] ?? 0;
+          const decayed = measured > 0.035 ? measured : (current[key] ?? 0) * 0.82;
+          const clamped = decayed < 0.015 ? 0 : decayed;
+          next[key] = clamped;
+          nextRoomLevel = Math.max(nextRoomLevel, clamped);
+        });
+
+        return next;
+      });
+
+      setRoomActivityLevel(nextRoomLevel);
+
+      if (nextRoomLevel < 0.035) {
         setSignalLevels(idleLevels);
       } else {
         const activeWave = Date.now() / 180;
@@ -749,7 +790,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           idleLevels.map((base, index) => {
             const wave = (Math.sin(activeWave + index * 0.72) + 1) / 2;
             const emphasis = index % 3 === 0 ? 1.16 : index % 2 === 0 ? 0.94 : 0.82;
-            const height = base + wave * 10 + roomLevel * 54 * emphasis;
+            const height = base + wave * 10 + nextRoomLevel * 54 * emphasis;
             return Math.max(10, Math.min(82, Math.round(height)));
           })
         );
@@ -766,7 +807,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       window.cancelAnimationFrame(frame);
       signalRafRef.current = null;
     };
-  }, [joinedVoiceRoomId]);
+  }, [currentUser?.id, joinedVoiceRoomId]);
 
   const activeServer = useMemo(
     () => data.servers.find((server) => server.id === activeServerId) ?? data.servers[0],
@@ -792,6 +833,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const activeMessages = data.messages[activeTextChannel.id] ?? [];
   const displayedMessages =
     viewMode === "dm" && activeThread ? data.messages[activeThread.id] ?? [] : activeMessages;
+  const speakingUserIds = Object.entries(participantLevels)
+    .filter(([, level]) => level > 0.06)
+    .map(([userId]) => userId);
   const activeMembers = activeVoiceChannel
     ? Object.values(presenceMembers)
         .filter(
@@ -801,7 +845,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         .map((member) => ({
           id: member.id,
           name: member.name,
-          role: "Live member",
+          role: speakingUserIds.includes(member.id) ? "Speaking now" : "Live member",
           status: "online" as const
         }))
     : [];
@@ -848,8 +892,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     delete audioSourceRefs.current.local;
     localAnalyserRef.current = null;
     setIsMuted(false);
+    setIsDeafened(false);
     setIsPushToTalkActive(false);
     setSignalLevels([14, 18, 12, 22, 16, 24, 13, 19, 15, 21]);
+    setParticipantLevels({});
+    setRoomActivityLevel(0);
+    setVoiceConnectionStatus("idle");
   }
 
   async function sendVoiceSignal(payload: Record<string, unknown>) {
@@ -893,6 +941,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setVoiceParticipants(null);
     setIsVoiceConnecting(false);
     setIsMuted(false);
+    setIsDeafened(false);
     setIsPushToTalkActive(false);
     playUiSound("leave");
   }
@@ -935,6 +984,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       if (existingAudio) {
         existingAudio.srcObject = stream;
         attachAnalyser(stream, remoteUserId);
+        existingAudio.muted = isDeafened;
+        existingAudio.volume = outputVolume;
         void existingAudio.play().catch(() => null);
         return;
       }
@@ -942,13 +993,25 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       const audio = new Audio();
       audio.autoplay = true;
       audio.srcObject = stream;
+      audio.muted = isDeafened;
+      audio.volume = outputVolume;
       remoteAudioRef.current[remoteUserId] = audio;
       attachAnalyser(stream, remoteUserId);
       void audio.play().catch(() => null);
     };
 
     peer.onconnectionstatechange = () => {
-      if (["failed", "closed", "disconnected"].includes(peer.connectionState)) {
+      if (peer.connectionState === "connected") {
+        setVoiceConnectionStatus("connected");
+      } else if (peer.connectionState === "disconnected") {
+        setVoiceConnectionStatus("reconnecting");
+      } else if (peer.connectionState === "failed") {
+        setVoiceConnectionStatus("failed");
+        setError("Voice connection dropped. Rejoin the room to recover.");
+        playUiSound("error");
+      }
+
+      if (["failed", "closed"].includes(peer.connectionState)) {
         cleanupPeer(remoteUserId);
       }
     };
@@ -1281,6 +1344,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
 
     setError(null);
     setIsVoiceConnecting(true);
+    setVoiceConnectionStatus("connecting");
 
     try {
       localStreamRef.current = await navigator.mediaDevices.getUserMedia({
@@ -1312,6 +1376,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       setJoinedVoiceRoomId(payload.roomId);
       setVoiceParticipants(payload.participants);
       setIsMuted(false);
+      setIsDeafened(false);
+      setVoiceConnectionStatus("connected");
       if (presenceChannelRef.current && currentUser) {
         await presenceChannelRef.current.track({
           id: currentUser.id,
@@ -1325,6 +1391,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       playUiSound("join");
     } catch {
       setError("Microphone access failed or voice could not start.");
+      setVoiceConnectionStatus("failed");
       playUiSound("error");
       cleanupVoiceSession();
     } finally {
@@ -1345,6 +1412,18 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   function handleTogglePushToTalk() {
     setIsPushToTalk((current) => !current);
     setIsPushToTalkActive(false);
+  }
+
+  function handleToggleDeafen() {
+    if (!joinedVoiceRoomId) {
+      return;
+    }
+
+    setIsDeafened((current) => !current);
+  }
+
+  function handleOutputVolumeChange(value: number) {
+    setOutputVolume(value);
   }
 
   async function handleAuthSubmit() {
@@ -1633,14 +1712,20 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           members={activeMembers}
           joined={joinedVoiceRoomId === activeVoiceChannel?.id}
           muted={isMuted}
+          deafened={isDeafened}
           connecting={isVoiceConnecting}
           pushToTalk={isPushToTalk}
           transmitting={isPushToTalk && isPushToTalkActive && !isMuted}
           signalLevels={signalLevels}
+          outputVolume={outputVolume}
+          connectionStatus={voiceConnectionStatus}
+          speakingUserIds={speakingUserIds}
           participants={activeMembers.length}
           onToggleJoin={handleVoiceToggle}
           onToggleMute={handleToggleMute}
+          onToggleDeafen={handleToggleDeafen}
           onTogglePushToTalk={handleTogglePushToTalk}
+          onOutputVolumeChange={handleOutputVolumeChange}
         />
       </section>
 
@@ -1660,10 +1745,20 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
             onOpenThread={handleOpenThread}
           />
         </div>
-        <section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 p-6 shadow-panel backdrop-blur">
+        <section
+          className="relative overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 p-6 shadow-panel backdrop-blur"
+        >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,59,95,0.18),transparent_22%),radial-gradient(circle_at_bottom_right,rgba(123,246,255,0.12),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.03),transparent_50%)]" />
           <div className="relative grid h-full gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="flex flex-col justify-between rounded-[28px] border border-white/10 bg-black/20 p-6">
+            <div
+              className="flex flex-col justify-between rounded-[28px] border border-white/10 bg-black/20 p-6 transition"
+              style={{
+                boxShadow:
+                  roomActivityLevel > 0.05
+                    ? `0 0 ${18 + roomActivityLevel * 36}px rgba(123,246,255,${0.08 + roomActivityLevel * 0.18})`
+                    : undefined
+              }}
+            >
               <div>
                 <p className="text-xs uppercase tracking-[0.35em] text-ember/75">Nightlink Atmosphere</p>
                 <h3 className="mt-4 font-display text-4xl uppercase tracking-[0.08em] text-white">
@@ -1680,8 +1775,12 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
                 <span className="rounded-full border border-ember/20 bg-ember/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-ember">
                   Tactical
                 </span>
-                <span className="rounded-full border border-sea/20 bg-sea/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-sea">
-                  Minimal
+                <span
+                  className={roomActivityLevel > 0.05
+                    ? "rounded-full border border-sea/20 bg-sea/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-sea"
+                    : "rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.24em] text-white/65"}
+                >
+                  {roomActivityLevel > 0.05 ? "Live Room" : "Minimal"}
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.24em] text-white/65">
                   Squad UI
@@ -1693,11 +1792,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
               <div className="rounded-[28px] border border-white/10 bg-black/20 p-5">
                 <p className="text-xs uppercase tracking-[0.28em] text-white/35">Pulse</p>
                 <div className="mt-4 flex items-end gap-2">
-                  {[28, 54, 34, 62, 40, 72, 48, 31, 57, 44].map((height, index) => (
+                  {signalLevels.map((height, index) => (
                     <span
                       key={index}
-                      className="w-full rounded-full bg-gradient-to-t from-ember via-[#ff8c70] to-sea/80"
-                      style={{ height }}
+                      className="w-full rounded-full bg-gradient-to-t from-ember via-[#ff8c70] to-sea/80 transition-[height] duration-100 ease-out"
+                      style={{ height: `${Math.max(18, Math.round(height * 0.92))}px` }}
                     />
                   ))}
                 </div>
@@ -1708,15 +1807,25 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-ember/20 to-transparent p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-white/45">Latency</p>
-                    <p className="mt-3 font-display text-2xl uppercase text-white">Low</p>
+                    <p className="mt-3 font-display text-2xl uppercase text-white">
+                      {voiceConnectionStatus === "reconnecting"
+                        ? "Retry"
+                        : voiceConnectionStatus === "failed"
+                          ? "Drop"
+                          : "Low"}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-sea/20 to-transparent p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-white/45">Noise</p>
-                    <p className="mt-3 font-display text-2xl uppercase text-white">Clean</p>
+                    <p className="mt-3 font-display text-2xl uppercase text-white">
+                      {roomActivityLevel > 0.08 ? "Hot" : "Clean"}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 to-transparent p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-white/45">Mode</p>
-                    <p className="mt-3 font-display text-2xl uppercase text-white">Night</p>
+                    <p className="mt-3 font-display text-2xl uppercase text-white">
+                      {joinedVoiceRoomId ? "Live" : "Night"}
+                    </p>
                   </div>
                 </div>
               </div>
