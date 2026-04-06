@@ -4,7 +4,7 @@ import { roadmap } from "@/lib/product-roadmap";
 
 export function RoadmapCard() {
   return (
-    <section className="h-full overflow-y-auto rounded-[32px] border border-white/10 bg-panel/90 p-6 shadow-panel backdrop-blur">
+    <section className="rounded-[32px] border border-white/10 bg-panel/90 p-6 shadow-panel backdrop-blur">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">Build Roadmap</p>

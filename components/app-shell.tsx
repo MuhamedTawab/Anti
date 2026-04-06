@@ -1439,7 +1439,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[1800px] flex-col gap-5 overflow-hidden">
+    <div className="mx-auto flex max-w-[1800px] flex-col gap-5">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-white/[0.05] via-white/[0.025] to-transparent shadow-panel">
         <div className="flex flex-col gap-4 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
           <div className="max-w-3xl">
@@ -1489,7 +1489,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         onSignOut={handleSignOut}
       />
 
-      <section className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
+      <section className="grid gap-4 xl:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
         <ServerRail items={data.servers} activeId={activeServer.id} onSelect={handleServerSelect} />
         <ChannelList
           server={activeServer}
@@ -1525,8 +1525,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         />
       </section>
 
-      <section className="grid min-h-0 max-h-[34vh] gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <div className="min-h-0 overflow-hidden rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel">
+      <section className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel">
           <SocialPanel
             friends={socialData.friends}
             incomingRequests={socialData.incomingRequests}
