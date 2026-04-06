@@ -1019,6 +1019,24 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           </button>
           <span className="text-sm text-white/60">No servers are available for this account yet.</span>
         </div>
+        <PromptModal
+          open={createServerModalOpen}
+          title="Create Server"
+          description="Give your new server a name."
+          placeholder="e.g. Night Squad"
+          confirmLabel="Create"
+          onConfirm={handleCreateServer}
+          onCancel={() => setCreateServerModalOpen(false)}
+        />
+        <PromptModal
+          open={joinInviteModalOpen}
+          title="Join with Invite"
+          description="Paste an invite code to join an existing server."
+          placeholder="Invite code"
+          confirmLabel="Join"
+          onConfirm={handleJoinInvite}
+          onCancel={() => setJoinInviteModalOpen(false)}
+        />
       </div>
     );
   }
