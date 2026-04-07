@@ -77,7 +77,9 @@ export function ChannelList() {
     socialData,
     activeThreadId,
     handleOpenThread,
-    handleDeleteServer
+    handleDeleteServer,
+    globalTyping,
+    globalPresence
   } = useNightlink();
 
   if (!server) {
@@ -118,39 +120,51 @@ export function ChannelList() {
                 <Plus size={14} className="text-[#9da0a7] opacity-0 group-hover:opacity-40 hover:opacity-100 cursor-pointer" />
               </div>
               
-              {socialData.directThreads.map((thread) => (
-                <button
-                  key={thread.id}
-                  onClick={() => handleOpenThread(thread.friendId)}
-                  className={clsx(
-                    "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
-                    activeThreadId === thread.id
-                      ? "bg-white/5 text-white"
-                      : "text-[#9da0a7] hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  <div className="relative">
-                    <div className="h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden">
-                       {thread.friendAvatarUrl ? (
-                         <img src={thread.friendAvatarUrl} className="h-full w-full object-cover" />
-                       ) : (
-                         <span className="text-[10px] font-bold">{thread.friendName.slice(0, 1)}</span>
-                       )}
+              {socialData.directThreads.map((thread) => {
+                const typing = globalTyping[thread.friendId];
+                const presence = globalPresence[thread.friendId];
+                const isSelected = activeThreadId === thread.id;
+
+                return (
+                  <button
+                    key={thread.id}
+                    onClick={() => handleOpenThread(thread.friendId)}
+                    className={clsx(
+                      "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
+                      isSelected
+                        ? "bg-white/5 text-white"
+                        : "text-[#9da0a7] hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <div className="relative">
+                      <div className="h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden">
+                         {thread.friendAvatarUrl ? (
+                           <img src={thread.friendAvatarUrl} className="h-full w-full object-cover" />
+                         ) : (
+                           <span className="text-[10px] font-bold">{thread.friendName.slice(0, 1)}</span>
+                         )}
+                      </div>
+                      {presence && (
+                        <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[#23a559] border-2 border-[#0d0d0f] animate-pulse" />
+                      )}
                     </div>
-                  </div>
-                  <div className="flex flex-col items-start min-w-0 flex-1">
-                    <span className="text-sm font-bold truncate w-full">{thread.friendName}</span>
-                    <span className="text-[10px] font-medium text-[#9da0a7] truncate w-full opacity-60">
-                      {thread.lastMessage || "Operation Active"}
-                    </span>
-                  </div>
-                  {unreadCounts[thread.id] > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3b5f] px-1 text-[10px] font-black text-white shadow-lg shadow-[#ff3b5f]/20">
-                      {unreadCounts[thread.id] > 99 ? "99+" : unreadCounts[thread.id]}
-                    </span>
-                  )}
-                </button>
-              ))}
+                    <div className="flex flex-col items-start min-w-0 flex-1">
+                      <span className="text-sm font-bold truncate w-full">{thread.friendName}</span>
+                      <span className={clsx(
+                        "text-[10px] font-medium truncate w-full transition-colors",
+                        typing ? "text-[#f2a365] animate-pulse" : presence ? "text-[#23a559]" : "text-[#9da0a7] opacity-60"
+                      )}>
+                        {typing ? "is typing..." : presence ? `Live in ${presence.roomName}` : (thread.lastMessage || "Operation Active")}
+                      </span>
+                    </div>
+                    {unreadCounts[thread.id] > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3b5f] px-1 text-[10px] font-black text-white shadow-lg shadow-[#ff3b5f]/20">
+                        {unreadCounts[thread.id] > 99 ? "99+" : unreadCounts[thread.id]}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
 
               {socialData.directThreads.length === 0 && (
                 <div className="py-10 px-4 text-center opacity-20 italic">

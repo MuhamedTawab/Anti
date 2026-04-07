@@ -96,6 +96,10 @@ export function NightlinkProvider({
   const [joinInviteModalOpen, setJoinInviteModalOpen] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // V18: Presence Intelligence State
+  const [globalTyping, setGlobalTyping] = useState<Record<string, { channelId: string; expiresAt: number }>>({});
+  const [globalPresence, setGlobalPresence] = useState<Record<string, { serverId: string; roomId: string; roomName: string } | null>>({});
 
   const { playUiSound, getAudioContext } = useUiSounds();
 
@@ -222,7 +226,29 @@ export function NightlinkProvider({
           [channelId]: (prev[channelId] || 0) + 1
         }));
       }
-    }).subscribe();
+    });
+
+    // V18: Sync Global Typing
+    channel.on('broadcast', { event: 'typing' }, (payload) => {
+      const { userId, channelId, name } = payload.payload;
+      if (userId === currentUser.id) return;
+      setGlobalTyping(prev => ({
+        ...prev,
+        [userId]: { channelId, expiresAt: Date.now() + 2500 }
+      }));
+    });
+
+    // V18: Sync Global Voice Presence
+    channel.on('broadcast', { event: 'voice_presence' }, (payload) => {
+      const { userId, serverId, roomId, roomName, action } = payload.payload;
+      if (userId === currentUser.id) return;
+      setGlobalPresence(prev => ({
+        ...prev,
+        [userId]: action === 'join' ? { serverId, roomId, roomName } : null
+      }));
+    });
+
+    channel.subscribe();
 
     globalChannelRef.current = channel;
     return () => { void supabase.removeChannel(channel); };
@@ -266,6 +292,24 @@ export function NightlinkProvider({
     }
   }, [data.messages, getAuthHeaders, setData]);
 
+  // V18: Prune Global Typing
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGlobalTyping(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.entries(next).forEach(([userId, typing]) => {
+          if (typing.expiresAt < Date.now()) {
+            delete next[userId];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   // V14: Global Message Pulse Listener
   useEffect(() => {
     if (!supabase || !currentUser) return;
@@ -305,8 +349,9 @@ export function NightlinkProvider({
           [channelId]: (prev[channelId] || 0) + 1
         }));
       }
-    }).subscribe();
-
+    });
+    
+    channel.subscribe();
     globalChannelRef.current = channel;
     return () => { void supabase.removeChannel(channel); };
   }, [supabase, currentUser, activeChatKey, playUiSound]);
@@ -355,9 +400,34 @@ export function NightlinkProvider({
   }, [setActiveTextChannelId, setActiveThreadId, setViewMode, loadChannelMessages]);
 
   async function handleVoiceChannelSelect(channelId: string) {
+    if (joinedVoiceRoomId && globalChannelRef.current && currentUser) {
+      void globalChannelRef.current.send({
+        type: 'broadcast',
+        event: 'voice_presence',
+        payload: { userId: currentUser.id, action: 'leave' }
+      });
+    }
+
     if (joinedVoiceRoomId) await leaveVoiceRoom();
     setActiveVoiceChannelId(channelId);
     setError(null);
+
+    // V18: Broadcast Join
+    const server = activeServer;
+    const channel = server?.channels.find(c => c.id === channelId);
+    if (globalChannelRef.current && currentUser && server && channel) {
+      void globalChannelRef.current.send({
+        type: 'broadcast',
+        event: 'voice_presence',
+        payload: { 
+          userId: currentUser.id, 
+          serverId: server.id, 
+          roomId: channelId, 
+          roomName: channel.name,
+          action: 'join' 
+        }
+      });
+    }
   }
 
   function handleHomeSelect() {
@@ -485,10 +555,20 @@ export function NightlinkProvider({
   const typingDebounceRef = useRef<any>(null);
   function handleComposerChange(value: string) {
     setComposerValue(value);
-    if (!value.trim() || !currentUser || !realtimeChannelRef.current) return;
+    if (!value.trim() || !currentUser) return;
     if (typingDebounceRef.current) clearTimeout(typingDebounceRef.current);
     typingDebounceRef.current = setTimeout(() => {
+      // Local room typing
       void realtimeChannelRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: currentUser.id, name: currentUser.name, channelId: activeChatKey } });
+      
+      // V18: Global Pulse typing (for sidebar awareness)
+      if (viewMode === "dm" && globalChannelRef.current) {
+        void globalChannelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUser.id, name: currentUser.name, channelId: activeChatKey }
+        });
+      }
     }, 300);
   }
 
@@ -627,9 +707,10 @@ export function NightlinkProvider({
     profileName, profileHandle, profileAvatarUrl, profileBio, handleProfileNameChange: setProfileName, handleProfileHandleChange: setProfileHandle, handleProfileAvatarUrlChange: setProfileAvatarUrl, handleProfileBioChange: setProfileBio, handleSaveProfile,
     createServerModalOpen, setCreateServerModalOpen, joinInviteModalOpen, setJoinInviteModalOpen, activeInviteCode, setActiveInviteCode,
     friendEmail, setFriendEmail,
+    globalTyping, globalPresence,
     playUiSound, getAudioContext, setPresenceMembers
   }), [
-    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, playUiSound, getAudioContext, setPresenceMembers
+    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, globalTyping, globalPresence, playUiSound, getAudioContext, setPresenceMembers
   ]);
 
   return (

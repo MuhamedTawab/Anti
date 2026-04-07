@@ -36,6 +36,10 @@ export interface NightlinkContextType {
   viewMode: "channel" | "dm" | "profile";
   setViewMode: (mode: "channel" | "dm" | "profile") => void;
 
+  // V18: Presence Intelligence
+  globalTyping: Record<string, { channelId: string; expiresAt: number }>;
+  globalPresence: Record<string, { serverId: string; roomId: string; roomName: string } | null>;
+
   // Active objects (derived)
   activeServer: Server | null;
   activeTextChannel: Channel | null;
