@@ -131,7 +131,16 @@ function AppLayout() {
       {/* Main UI */}
       <ServerRail />
 
-      {viewMode === "channel" ? (
+      {viewMode === "profile" ? (
+        <>
+          <ChannelList />
+          <main className="flex flex-1 flex-col bg-[#111214] p-8 overflow-y-auto">
+            <div className="max-w-4xl mx-auto w-full">
+              <AuthPanel />
+            </div>
+          </main>
+        </>
+      ) : viewMode === "channel" ? (
         <>
           <ChannelList />
 

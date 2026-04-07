@@ -159,6 +159,18 @@ export function VoicePanel() {
         )}
       </div>
 
+      {!joined && (
+        <div className="mx-4 mb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <button
+            onClick={() => handleVoiceToggle(activeVoiceChannel?.id ?? null)}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#23a559] to-[#2dc770] py-4 text-sm font-black uppercase tracking-[0.1em] text-white shadow-xl shadow-[#23a559]/20 transition-all hover:scale-[1.02] active:scale-[0.98] hover:shadow-[#23a559]/30"
+          >
+            <Volume2 size={20} />
+            Join Voice Room
+          </button>
+        </div>
+      )}
+
       {/* Connection & Controls Area */}
       <div className="mt-auto border-t border-white/5 bg-[#18191c]/80 p-4 backdrop-blur-md">
         {/* Connection Status Banner */}

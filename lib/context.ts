@@ -33,8 +33,10 @@ export interface NightlinkContextType {
   setActiveVoiceChannelId: (id: string) => void;
   activeThreadId: string | null;
   setActiveThreadId: (id: string | null) => void;
-  viewMode: "channel" | "dm";
-  setViewMode: (mode: "channel" | "dm") => void;
+  viewMode: "channel" | "dm" | "profile";
+  setViewMode: (mode: "channel" | "dm" | "profile") => void;
+  activeSocialTab: "friends" | "pending" | "blocked";
+  setActiveSocialTab: (tab: "friends" | "pending" | "blocked") => void;
 
   // Active objects (derived)
   activeServer: Server | null;

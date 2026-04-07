@@ -70,7 +70,8 @@ export function ChannelList() {
     handleCreateInvite: onCreateInvite,
     unreadCounts,
     setViewMode,
-    setActiveThreadId
+    setActiveThreadId,
+    currentUser
   } = useNightlink();
 
   if (!server) return null;
@@ -169,23 +170,40 @@ export function ChannelList() {
         </div>
       </div>
 
-      {/* User Footer (Optional but nice) */}
+      {/* User Footer */}
       <div className="mt-auto p-4 border-t border-white/5 bg-[#080809]">
-         <div className="flex items-center gap-3 px-1">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#ff3b5f] to-[#ff8a5b] p-0.5">
-               <div className="h-full w-full rounded-[10px] bg-[#0d0d0f] flex items-center justify-center text-[10px] font-bold text-white uppercase tracking-tighter">NL</div>
+        <div className="flex items-center gap-3 px-1">
+          <button 
+            onClick={() => setViewMode("profile")}
+            className="group relative h-9 w-9 rounded-xl bg-gradient-to-br from-[#ff3b5f] to-[#ff8a5b] p-0.5 transition-transform hover:scale-105 active:scale-95"
+          >
+            <div className="h-full w-full rounded-[10px] bg-[#0d0d0f] flex items-center justify-center overflow-hidden">
+               {currentUser?.avatarUrl ? (
+                 <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-full w-full object-cover" />
+               ) : (
+                 <span className="text-[10px] font-bold text-white uppercase">{currentUser?.name.slice(0, 2)}</span>
+               )}
             </div>
-            <div className="flex flex-col min-w-0">
-               <span className="text-xs font-bold text-white truncate">Nightlink v2</span>
-               <div className="flex items-center gap-1">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#23a559]" />
-                  <span className="text-[9px] font-bold text-[#9da0a7] uppercase tracking-tighter opacity-60">System Ready</span>
-               </div>
-            </div>
-            <button className="ml-auto p-1.5 text-[#9da0a7] hover:text-[#da373c] transition-colors">
-               <LogOut size={16} />
+            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#23a559] border-2 border-[#080809]" />
+          </button>
+          
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-xs font-bold text-white truncate">{currentUser?.name}</span>
+            <span className="text-[9px] font-bold text-[#9da0a7] uppercase tracking-tighter opacity-60 truncate">
+              {currentUser?.handle}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => setViewMode("profile")}
+              className="p-1.5 text-[#9da0a7] hover:text-white transition-colors"
+              title="Identity Settings"
+            >
+              <Settings size={16} />
             </button>
-         </div>
+          </div>
+        </div>
       </div>
     </section>
   );

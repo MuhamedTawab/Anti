@@ -76,7 +76,8 @@ export function NightlinkProvider({
   const [attachmentUrl, setAttachmentUrl] = useState("");
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [activeInviteCode, setActiveInviteCode] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"channel" | "dm">("channel");
+  const [viewMode, setViewMode] = useState<"channel" | "dm" | "profile">("channel");
+  const [activeSocialTab, setActiveSocialTab] = useState<"friends" | "pending" | "blocked">("friends");
   const [isSending, setIsSending] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
@@ -132,7 +133,7 @@ export function NightlinkProvider({
     supabase,
     currentUser,
     activeChatKey,
-    viewMode,
+    (viewMode === "profile" ? "dm" : viewMode) as "channel" | "dm",
     setData as any,
     playUiSound
   );
@@ -451,7 +452,8 @@ export function NightlinkProvider({
     handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest,
     profileName, profileHandle, profileAvatarUrl, profileBio, handleProfileNameChange: setProfileName, handleProfileHandleChange: setProfileHandle, handleProfileAvatarUrlChange: setProfileAvatarUrl, handleProfileBioChange: setProfileBio, handleSaveProfile,
     createServerModalOpen, setCreateServerModalOpen, joinInviteModalOpen, setJoinInviteModalOpen, activeInviteCode, setActiveInviteCode,
-    friendEmail, setFriendEmail
+    friendEmail, setFriendEmail,
+    activeSocialTab, setActiveSocialTab
   };
 
   return (
