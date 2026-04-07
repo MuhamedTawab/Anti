@@ -67,6 +67,8 @@ export function useVoiceRoom(
   const heartbeatNodesRef = useRef<{ osc: AudioBufferSourceNode | OscillatorNode; dest: MediaStreamAudioDestinationNode } | null>(null);
   const voiceWorkerRef = useRef<Worker | null>(null);
   const wakeLockRef = useRef<any>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoKeepAliveRef = useRef<HTMLVideoElement | null>(null);
 
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
@@ -454,8 +456,46 @@ export function useVoiceRoom(
           
           void audio.play().then(() => {
             noise.start();
-            console.log("[Voice] Unstoppable V6 Heartbeat (White Noise) active.");
+            console.log("[Voice] V9 Omega Heartbeat (Frequency-Shift) active.");
+            
+            // Periodically shift grain/gain to prevent "static noise" detection
+            const shiftInt = setInterval(() => {
+              if (gain?.gain) {
+                const current = gain.gain.value;
+                gain.gain.setValueAtTime(current === 0.0001 ? 0.00015 : 0.0001, ctx.currentTime);
+              }
+            }, 2000);
+            
+            return () => clearInterval(shiftInt);
           }).catch(() => null);
+
+          // V9: Video Keep-Alive (Canvas Trick)
+          // Edge prioritizes tabs with active video streams
+          if (!canvasRef.current && typeof document !== "undefined") {
+            const canvas = document.createElement("canvas");
+            canvas.width = 1;
+            canvas.height = 1;
+            canvasRef.current = canvas;
+            
+            const vctx = canvas.getContext("2d");
+            const stream = canvas.captureStream(1); // 1 FPS is enough to count as "active video"
+            
+            const video = document.createElement("video");
+            video.srcObject = stream;
+            video.muted = true;
+            video.setAttribute("playsinline", "");
+            videoKeepAliveRef.current = video;
+            
+            // Draw a single pixel change every few seconds to keep the stream "active"
+            const drawInt = setInterval(() => {
+              if (vctx) {
+                vctx.fillStyle = `rgb(${Math.random()*255},0,0)`;
+                vctx.fillRect(0, 0, 1, 1);
+              }
+            }, 5000);
+            
+            void video.play().catch(() => null);
+          }
         }
 
         // Request Screen Wake Lock if available
