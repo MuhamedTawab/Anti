@@ -64,6 +64,7 @@ export function useVoiceRoom(
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heartbeatNodesRef = useRef<{ osc: OscillatorNode; dest: MediaStreamAudioDestinationNode } | null>(null);
   const voiceWorkerRef = useRef<Worker | null>(null);
+  const wakeLockRef = useRef<any>(null);
 
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
@@ -236,6 +237,12 @@ export function useVoiceRoom(
       voiceWorkerRef.current.postMessage({ type: 'stop' });
       voiceWorkerRef.current.terminate();
       voiceWorkerRef.current = null;
+    }
+
+    if (wakeLockRef.current) {
+      void wakeLockRef.current.release().then(() => {
+        wakeLockRef.current = null;
+      });
     }
   }
 
@@ -428,14 +435,29 @@ export function useVoiceRoom(
           
           const audio = new Audio();
           audio.srcObject = dest.stream;
-          audio.muted = true; // Muted at element level, but stream is "playing"
+          audio.muted = false; // Unmuted to trick OS into treating us as a high-priority media player
+          audio.volume = 0.001; // Virtually silent to the user
           
           silentAudioRef.current = audio;
           heartbeatNodesRef.current = { osc, dest };
           
           void audio.play().then(() => {
             osc.start();
-          }).catch(() => null);
+            console.log("[Voice] High-Priority Volumetric Heartbeat active. Preventing background suspension.");
+          }).catch(() => {
+            console.warn("[Voice] Heartbeat start blocked by browser. User interaction required.");
+          });
+        }
+
+        // Request Screen Wake Lock if available
+        if ('wakeLock' in navigator) {
+          try {
+            (navigator as any).wakeLock.request('screen').then((lock: any) => {
+              wakeLockRef.current = lock;
+            });
+          } catch (err) {
+            console.error("[Voice] Wake Lock failed:", err);
+          }
         }
 
         // Initialize Background Worker for High-Precision Signaling
@@ -578,7 +600,13 @@ export function useVoiceRoom(
     }
 
     function handleBlur() {
-      setIsPushToTalkActive(false);
+      // Browsers lose key-tracking when backgrounded. 
+      // If we are in PTT mode, we must release the mic, 
+      // but we add a small console log to help debug.
+      if (isPushToTalkActive) {
+        setIsPushToTalkActive(false);
+        console.log("[Voice] PTT released due to focus loss (Alt-Tab). Switch to Open Mic to talk in background.");
+      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
