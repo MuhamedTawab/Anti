@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { Bell, Copy, Link2, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
+import { Bell, Link2, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
 
 import type { Message } from "@/lib/types";
 
@@ -34,14 +33,8 @@ export function ChatPanel({
   onSend: () => void;
   onDeleteMessage: (messageId: string) => void;
 }) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [items.length, channelName]);
-
   return (
-    <section className="flex h-[75vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[85vh]">
+    <section className="flex h-[60vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[72vh]">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">
@@ -64,8 +57,8 @@ export function ChatPanel({
         {items.map((message) => (
           <article
             key={message.id}
-            className={`group relative flex gap-4 rounded-[26px] border border-transparent p-4 transition-all hover:bg-black/30 hover:border-white/10 ${
-              message.optimistic ? "bg-ember/10 opacity-80" : ""
+            className={`flex gap-4 rounded-[26px] border border-white/8 p-4 ${
+              message.optimistic ? "bg-ember/10 opacity-80" : "bg-black/20"
             }`}
           >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-ember to-sea font-display text-sm font-bold text-ink">
@@ -114,29 +107,17 @@ export function ChatPanel({
                 </div>
               ) : null}
             </div>
-            <div className="absolute right-6 top-4 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            {message.canModerate ? (
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(message.body);
-                }}
-                className="rounded-xl border border-white/10 bg-black/40 p-2.5 text-white/40 transition hover:border-sea/30 hover:text-sea"
-                title="Copy text"
+                onClick={() => onDeleteMessage(message.id)}
+                className="rounded-2xl border border-white/10 bg-black/15 p-3 text-white/40 transition hover:border-ember/30 hover:text-ember"
+                title="Delete message"
               >
-                <Copy size={14} />
+                <Trash2 size={14} />
               </button>
-              {message.canModerate ? (
-                <button
-                  onClick={() => onDeleteMessage(message.id)}
-                  className="rounded-xl border border-white/10 bg-black/40 p-2.5 text-white/40 transition hover:border-ember/30 hover:text-ember"
-                  title="Delete message"
-                >
-                  <Trash2 size={14} />
-                </button>
-              ) : null}
-            </div>
+            ) : null}
           </article>
         ))}
-        <div ref={messagesEndRef} />
       </div>
 
       {typingMembers.length ? (

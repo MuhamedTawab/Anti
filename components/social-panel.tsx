@@ -15,8 +15,7 @@ export function SocialPanel({
   onFriendEmailChange,
   onSendRequest,
   onRespondRequest,
-  onOpenThread,
-  unreadCounts
+  onOpenThread
 }: {
   friends: Friend[];
   incomingRequests: FriendRequest[];
@@ -29,7 +28,6 @@ export function SocialPanel({
   onSendRequest: () => void;
   onRespondRequest: (requestId: string, action: "accept" | "decline") => void;
   onOpenThread: (threadId: string) => void;
-  unreadCounts?: Record<string, number>;
 }) {
   return (
     <div className="mt-6 space-y-4">
