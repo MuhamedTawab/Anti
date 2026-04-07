@@ -157,7 +157,7 @@ export function useWorkspaceData(
       if (bootstrapResponse.ok) {
         const nextData = (await bootstrapResponse.json()) as BootstrapPayload;
         setData(nextData);
-        if (!nextData.servers.some((server) => server.id === activeServerId) && nextData.servers[0]) {
+        if (activeServerId && !nextData.servers.some((server) => server.id === activeServerId) && nextData.servers[0]) {
           setActiveServerId(nextData.servers[0].id);
           setActiveTextChannelId(getInitialTextChannel(nextData.servers[0]).id);
           setActiveVoiceChannelId(

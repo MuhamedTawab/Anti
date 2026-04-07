@@ -63,6 +63,7 @@ export function useVoiceRoom(
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heartbeatNodesRef = useRef<{ osc: OscillatorNode; dest: MediaStreamAudioDestinationNode } | null>(null);
+  const voiceWorkerRef = useRef<Worker | null>(null);
 
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
@@ -119,17 +120,29 @@ export function useVoiceRoom(
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+    const handleReactivate = () => {
+      const isVisible = document.visibilityState === "visible";
+      const isFocused = document.hasFocus();
+      
+      if (isVisible || isFocused) {
         const ctx = getAudioContext();
         if (ctx && ctx.state === "suspended") {
           void ctx.resume();
         }
+        
+        // If we are in a voice room, force a signal ping to keep us alive
+        if (joinedVoiceRoomId && voiceWorkerRef.current) {
+          voiceWorkerRef.current.postMessage({ type: 'ping' });
+        }
       }
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [getAudioContext]);
+    document.addEventListener("visibilitychange", handleReactivate);
+    window.addEventListener("focus", handleReactivate);
+    return () => {
+      document.removeEventListener("visibilitychange", handleReactivate);
+      window.removeEventListener("focus", handleReactivate);
+    };
+  }, [getAudioContext, joinedVoiceRoomId]);
 
   function measureAnalyserLevel(analyser: AnalyserNode | null) {
     if (!analyser) {
@@ -217,6 +230,12 @@ export function useVoiceRoom(
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
+    }
+
+    if (voiceWorkerRef.current) {
+      voiceWorkerRef.current.postMessage({ type: 'stop' });
+      voiceWorkerRef.current.terminate();
+      voiceWorkerRef.current = null;
     }
   }
 
@@ -419,16 +438,25 @@ export function useVoiceRoom(
           }).catch(() => null);
         }
 
-        // Periodically ping signaling channel to keep websocket warm
-        pingIntervalRef.current = setInterval(() => {
-          if (voiceSignalChannelRef.current && currentUser) {
-            void voiceSignalChannelRef.current.send({
-              type: "broadcast",
-              event: "ping",
-              payload: { userId: currentUser.id, timestamp: Date.now() }
-            });
+        // Initialize Background Worker for High-Precision Signaling
+        if (voiceWorkerRef.current) voiceWorkerRef.current.terminate();
+        
+        const worker = new Worker(new URL('/voice-worker.js', window.location.origin));
+        
+        worker.onmessage = (e) => {
+          if (e.data.type === 'tick') {
+            if (voiceSignalChannelRef.current && currentUser) {
+              void voiceSignalChannelRef.current.send({
+                type: "broadcast",
+                event: "ping",
+                payload: { userId: currentUser.id, timestamp: Date.now() }
+              });
+            }
           }
-        }, 15000); // Reduced to 15s for better background persistence
+        };
+        
+        worker.postMessage({ type: 'start', payload: { interval: 15000 } });
+        voiceWorkerRef.current = worker;
       }
     } catch {
       setError("Microphone access failed or voice could not start.");

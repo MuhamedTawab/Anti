@@ -262,12 +262,16 @@ export function NightlinkProvider({
     setActiveThreadId(null);
   }
 
-  function handleOpenThread(threadId: string) {
-    setActiveThreadId(threadId);
+  function handleOpenThread(id: string) {
+    // Try to find if 'id' is a thread.id or a friendId
+    const thread = socialData.directThreads.find((t) => t.id === id || t.friendId === id);
+    const resolvedThreadId = thread ? thread.id : id;
+
+    setActiveThreadId(resolvedThreadId);
     setViewMode("dm");
     setError(null);
     startTransition(() => {
-      loadDirectMessages(threadId).catch(() => setError("Could not load private messages."));
+      loadDirectMessages(resolvedThreadId).catch(() => setError("Could not load private messages."));
     });
   }
 
