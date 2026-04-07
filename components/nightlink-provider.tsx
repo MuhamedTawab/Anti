@@ -241,6 +241,9 @@ export function NightlinkProvider({
     setActiveInviteCode(null);
     setViewMode("channel");
     setError(null);
+
+    // V15.5: Instant Sync - Load messages for the default channel immediately
+    loadChannelMessages(nextTextChannel.id).catch(() => {});
   }
 
   const loadDirectMessages = useCallback(async (threadId: string) => {
