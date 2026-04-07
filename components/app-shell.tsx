@@ -189,7 +189,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     setIsPushToTalk,
     setOutputVolume,
     leaveVoiceRoom,
-    handleVoiceToggle
+    handleVoiceToggle,
+    pushToTalkKey,
+    setPushToTalkKey
   } = useVoiceRoom(supabase, currentUser, activeServerId, playUiSound, getAudioContext, setError, async (payload, channel) => {
     await channel?.send({ type: "broadcast", event: "signal", payload });
   });
@@ -1045,6 +1047,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           connectionStatus={voiceConnectionStatus}
           speakingUserIds={speakingUserIds}
           participants={activeMembers.length}
+          pushToTalkKey={pushToTalkKey}
+          onPushToTalkKeyChange={setPushToTalkKey}
           onToggleJoin={() => handleVoiceToggle(activeVoiceChannel?.id ?? null)}
           onToggleMute={() => setIsMuted(p => !p)}
           onToggleDeafen={() => setIsDeafened(p => !p)}

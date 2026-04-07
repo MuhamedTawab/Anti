@@ -1,5 +1,6 @@
+import { useState } from "react";
 import clsx from "clsx";
-import { Hand, Headphones, Mic, MicOff, Radio, Users, Volume2 } from "lucide-react";
+import { Hand, Headphones, Keyboard, Mic, MicOff, Radio, Users, Volume2 } from "lucide-react";
 
 import type { Member } from "@/lib/types";
 
@@ -21,7 +22,9 @@ export function VoicePanel({
   onToggleMute,
   onToggleDeafen,
   onTogglePushToTalk,
-  onOutputVolumeChange
+  onOutputVolumeChange,
+  pushToTalkKey,
+  onPushToTalkKeyChange
 }: {
   members: Member[];
   roomName: string;
@@ -36,12 +39,16 @@ export function VoicePanel({
   connectionStatus: "idle" | "connecting" | "connected" | "reconnecting" | "failed";
   speakingUserIds: string[];
   participants: number;
+  pushToTalkKey: string;
+  onPushToTalkKeyChange: (key: string) => void;
   onToggleJoin: () => void;
   onToggleMute: () => void;
   onToggleDeafen: () => void;
   onTogglePushToTalk: () => void;
   onOutputVolumeChange: (value: number) => void;
 }) {
+  const [isListeningKey, setIsListeningKey] = useState(false);
+
   const statusLabel =
     connectionStatus === "failed"
       ? "Voice failed"
@@ -149,9 +156,35 @@ export function VoicePanel({
             <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
               Push To Talk
             </p>
-            <p className="mt-1 text-xs text-white/45">
-              Hold `Space` to talk when this is enabled.
-            </p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="text-xs text-white/45">Hold</span>
+              <button
+                onClick={() => {
+                  if (isListeningKey) {
+                    setIsListeningKey(false);
+                    return;
+                  }
+                  setIsListeningKey(true);
+                  const listener = (event: KeyboardEvent) => {
+                    event.preventDefault();
+                    onPushToTalkKeyChange(event.code);
+                    setIsListeningKey(false);
+                    window.removeEventListener("keydown", listener);
+                  };
+                  window.addEventListener("keydown", listener);
+                }}
+                className={clsx(
+                  "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[10px] font-bold tracking-wider transition-colors",
+                  isListeningKey
+                    ? "border-sea/50 bg-sea/20 text-sea"
+                    : "border-white/10 bg-black/40 text-white/70 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                <Keyboard size={10} />
+                {isListeningKey ? "Listening..." : pushToTalkKey}
+              </button>
+              <span className="text-xs text-white/45">to talk.</span>
+            </div>
           </div>
           <button
             onClick={onTogglePushToTalk}

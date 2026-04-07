@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import type { AuthIdentity } from "@/lib/types";
 
@@ -19,6 +19,8 @@ export interface VoiceRoomResult {
   setIsPushToTalk: React.Dispatch<React.SetStateAction<boolean>>;
   isPushToTalkActive: boolean;
   setIsPushToTalkActive: React.Dispatch<React.SetStateAction<boolean>>;
+  pushToTalkKey: string;
+  setPushToTalkKey: (key: string) => void;
   voiceConnectionStatus: "idle" | "connecting" | "connected" | "reconnecting" | "failed";
   setVoiceConnectionStatus: React.Dispatch<React.SetStateAction<"idle" | "connecting" | "connected" | "reconnecting" | "failed">>;
   outputVolume: number;
@@ -62,6 +64,19 @@ export function useVoiceRoom(
   const [isDeafened, setIsDeafened] = useState(false);
   const [isPushToTalk, setIsPushToTalk] = useState(false);
   const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
+  const [pushToTalkKey, setPushToTalkKeyState] = useState("Space");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("nightlink_ptt_key");
+    if (saved) {
+      setPushToTalkKeyState(saved);
+    }
+  }, []);
+
+  const setPushToTalkKey = useCallback((key: string) => {
+    localStorage.setItem("nightlink_ptt_key", key);
+    setPushToTalkKeyState(key);
+  }, []);
   const [voiceConnectionStatus, setVoiceConnectionStatus] = useState<
     "idle" | "connecting" | "connected" | "reconnecting" | "failed"
   >("idle");
@@ -347,13 +362,13 @@ export function useVoiceRoom(
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.code !== "Space" || event.repeat || isTypingTarget(event.target)) return;
+      if (event.code !== pushToTalkKey || event.repeat || isTypingTarget(event.target)) return;
       event.preventDefault();
       setIsPushToTalkActive(true);
     }
 
     function handleKeyUp(event: KeyboardEvent) {
-      if (event.code !== "Space") return;
+      if (event.code !== pushToTalkKey) return;
       event.preventDefault();
       setIsPushToTalkActive(false);
     }
@@ -371,7 +386,7 @@ export function useVoiceRoom(
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
     };
-  }, [isPushToTalk, isPushToTalkActive, joinedVoiceRoomId]);
+  }, [isPushToTalk, isPushToTalkActive, joinedVoiceRoomId, pushToTalkKey]);
 
   // Effect: Voice signal channel setup
   useEffect(() => {
@@ -552,5 +567,7 @@ export function useVoiceRoom(
     leaveVoiceRoom,
     createPeerConnection,
     handleVoiceToggle,
+    pushToTalkKey,
+    setPushToTalkKey
   };
 }
