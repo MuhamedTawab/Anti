@@ -76,7 +76,8 @@ export function ChannelList() {
     currentUser,
     socialData,
     activeThreadId,
-    handleOpenThread
+    handleOpenThread,
+    handleDeleteServer
   } = useNightlink();
 
   if (!server) {
@@ -139,7 +140,9 @@ export function ChannelList() {
                   </div>
                   <div className="flex flex-col items-start min-w-0 flex-1">
                     <span className="text-sm font-bold truncate w-full">{thread.friendName}</span>
-                    <span className="text-[9px] font-medium opacity-40 uppercase tracking-tighter truncate w-full">Operation Active</span>
+                    <span className="text-[10px] font-medium text-[#9da0a7] truncate w-full opacity-60">
+                      {thread.lastMessage || "Operation Active"}
+                    </span>
                   </div>
                   {unreadCounts[thread.id] > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3b5f] px-1 text-[10px] font-black text-white shadow-lg shadow-[#ff3b5f]/20">
@@ -280,12 +283,26 @@ export function ChannelList() {
               <p className="text-[11px] leading-relaxed text-[#9da0a7] font-medium italic opacity-80">
                 Low-noise comms active. All signals encrypted. Ready for late-night sessions.
               </p>
-              <button 
-                onClick={onCreateInvite}
-                className="w-full py-2 rounded-xl bg-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[#9da0a7] hover:bg-white/10 hover:text-white transition-all border border-white/5"
-              >
-                Create Invite
-              </button>
+              <div className="space-y-2">
+                 <button 
+                   onClick={onCreateInvite}
+                   className="w-full py-2 rounded-xl bg-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-[#9da0a7] hover:bg-white/10 hover:text-white transition-all border border-white/5"
+                 >
+                   Create Invite
+                 </button>
+                 {currentUser?.id === server.ownerId && (
+                   <button 
+                     onClick={() => {
+                       if (confirm("Execute Destruction Protocol? This will permanently wipe this space.")) {
+                         handleDeleteServer(server.id);
+                       }
+                     }}
+                     className="w-full py-2 rounded-xl bg-[#ff3b5f]/5 text-[9px] font-black uppercase tracking-[0.2em] text-[#ff3b5f]/60 hover:bg-[#ff3b5f]/10 hover:text-[#ff3b5f] transition-all border border-[#ff3b5f]/10"
+                   >
+                     Delete Server
+                   </button>
+                 )}
+               </div>
            </div>
         </div>
       </div>

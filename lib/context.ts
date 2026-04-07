@@ -100,6 +100,7 @@ export interface NightlinkContextType {
   handleCreateServer: (name: string) => Promise<void>;
   handleJoinInvite: (code: string) => Promise<void>;
   handleCreateInvite: () => Promise<void>;
+  handleDeleteServer: (serverId: string) => Promise<void>;
   handleModerateMember: (targetId: string, action: "kick" | "ban") => Promise<void>;
   handleDeleteMessage: (id: string) => Promise<void>;
   handleSendFriendRequest: () => Promise<void>;

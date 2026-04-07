@@ -589,6 +589,32 @@ export function NightlinkProvider({
     } finally { setAuthLoading(false); }
   }
 
+  async function handleDeleteServer(serverId: string) {
+    if (!currentUser || !accessToken) return;
+    try {
+      const response = await fetch(`/api/servers/${serverId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders() ?? {}
+      });
+      if (response.ok) {
+        setData(prev => ({
+          ...prev,
+          servers: prev.servers.filter(s => s.id !== serverId)
+        }));
+        setActiveServerId(null);
+        setViewMode("dm");
+        playUiSound("leave"); // Corrected sound key
+      } else {
+        const err = await response.json();
+        setError(err.error || "Failed to delete server.");
+        playUiSound("error");
+      }
+    } catch (e) {
+      setError("Network error across destruction protocol.");
+      playUiSound("error");
+    }
+  }
+
   const value = useMemo(() => ({
     currentUser, accessToken, authLoading, authMessage, setAuthMessage, getAuthHeaders,
     data, setData, socialData, setSocialData,
@@ -597,13 +623,14 @@ export function NightlinkProvider({
     error, setError, composerValue, setComposerValue, attachmentUrl, setAttachmentUrl, attachmentOpen, setAttachmentOpen, isSending, isPending, hasMore, isLoadingMore,
     joinedVoiceRoomId, isVoiceConnecting, isMuted, setIsMuted, isDeafened, setIsDeafened, isPushToTalk, setIsPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, setOutputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams,
     pushToTalkKey, setPushToTalkKey, isRecordingPTT, setIsRecordingPTT,
-    handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest,
+    handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer,
+    handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest,
     profileName, profileHandle, profileAvatarUrl, profileBio, handleProfileNameChange: setProfileName, handleProfileHandleChange: setProfileHandle, handleProfileAvatarUrlChange: setProfileAvatarUrl, handleProfileBioChange: setProfileBio, handleSaveProfile,
     createServerModalOpen, setCreateServerModalOpen, joinInviteModalOpen, setJoinInviteModalOpen, activeInviteCode, setActiveInviteCode,
-    friendEmail, setFriendEmail,
-    activeSocialTab, setActiveSocialTab
+    friendEmail, setFriendEmail, activeSocialTab, setActiveSocialTab,
+    playUiSound, getAudioContext, setPresenceMembers
   }), [
-    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, activeSocialTab
+    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, activeSocialTab, playUiSound, getAudioContext, setPresenceMembers
   ]);
 
   return (
