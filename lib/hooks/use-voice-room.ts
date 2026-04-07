@@ -597,17 +597,31 @@ export function useVoiceRoom(
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        // Resume AudioContext if it was suspended by the browser
-        const ctx = getAudioContext();
-        if (ctx && ctx.state === "suspended") {
-          void ctx.resume().catch(() => null);
-        }
-        // Re-apply enabled state to audio tracks to counteract browser-level suppression
-        const audioTracks = localStreamRef.current?.getAudioTracks() ?? [];
-        const shouldTransmit = !isMuted && (!isPushToTalk || isPushToTalkActive);
-        audioTracks.forEach((track) => {
-          track.enabled = shouldTransmit;
-        });
+        // V11: Debounced Restoration
+        // We wait for the browser to "settle" before we touch the audio/network stack
+        setTimeout(() => {
+          const ctx = getAudioContext();
+          if (ctx && ctx.state === "suspended") {
+            console.log("[Voice] V11: Resuming suspended AudioContext.");
+            void ctx.resume().catch(() => null);
+          }
+          
+          // Stream Health Check: If Edge/Windows muted the track in the background, flip it back
+          const audioTracks = localStreamRef.current?.getAudioTracks() ?? [];
+          const shouldTransmit = !isMuted && (!isPushToTalk || isPushToTalkActive);
+          
+          audioTracks.forEach((track) => {
+            if (track.enabled !== shouldTransmit) {
+              console.log(`[Voice] V11: Restoring track to ${shouldTransmit}`);
+              track.enabled = shouldTransmit;
+            }
+          });
+          
+          // PTT Cleanup: Ensure no "stuck" keys from background
+          if (!isPushToTalkActive) {
+            setIsPushToTalkActive(false);
+          }
+        }, 300);
       }
     }
 
