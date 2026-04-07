@@ -10,32 +10,7 @@ import type {
   SocialPayload
 } from "@/lib/types";
 
-const serverSeed: Server[] = [
-  {
-    id: "hq",
-    name: "Anti HQ",
-    initials: "AH",
-    accent: "from-[#ff3b5f] to-[#ff8a5b]",
-    channels: [
-      { id: "welcome", name: "welcome", kind: "text", unread: 4 },
-      { id: "build-log", name: "build-log", kind: "text", unread: 2 },
-      { id: "ideas", name: "ideas", kind: "text" },
-      { id: "war-room", name: "war-room", kind: "voice", members: 6 },
-      { id: "late-night", name: "late-night", kind: "voice", members: 2 }
-    ]
-  },
-  {
-    id: "design",
-    name: "Signal Lab",
-    initials: "SL",
-    accent: "from-[#7bf6ff] to-[#6aa9ff]",
-    channels: [
-      { id: "moodboard", name: "moodboard", kind: "text", unread: 1 },
-      { id: "feedback", name: "feedback", kind: "text" },
-      { id: "listening-room", name: "listening-room", kind: "voice", members: 3 }
-    ]
-  }
-];
+const serverSeed: Server[] = [];
 
 const messageSeed: Record<string, Message[]> = {
   welcome: [],
