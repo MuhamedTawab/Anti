@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { KeyRound, LoaderCircle, LogOut, Mail, ShieldCheck } from "lucide-react";
 
 import type { AuthIdentity } from "@/lib/types";
@@ -7,15 +9,11 @@ import type { AuthIdentity } from "@/lib/types";
 interface AuthPanelProps {
   currentUser: AuthIdentity | null;
   profileName: string;
-  profileHandle: string;
   profileAvatarUrl: string;
-  profileBio: string;
   loading: boolean;
   message: string | null;
   onProfileNameChange: (value: string) => void;
-  onProfileHandleChange: (value: string) => void;
   onProfileAvatarUrlChange: (value: string) => void;
-  onProfileBioChange: (value: string) => void;
   onGoogleSignIn: () => void;
   onSaveProfile: () => void;
   onSignOut: () => void;
@@ -24,21 +22,20 @@ interface AuthPanelProps {
 export function AuthPanel({
   currentUser,
   profileName,
-  profileHandle,
   profileAvatarUrl,
-  profileBio,
   loading,
   message,
   onProfileNameChange,
-  onProfileHandleChange,
   onProfileAvatarUrlChange,
-  onProfileBioChange,
   onGoogleSignIn,
   onSaveProfile,
   onSignOut
 }: AuthPanelProps) {
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
   if (currentUser) {
     return (
+      <>
       <section className="flex flex-col gap-4 rounded-[28px] border border-white/10 bg-panel/90 px-6 py-5 shadow-panel xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="mb-2 text-xs uppercase tracking-[0.35em] text-sea/80">Nightlink Access</p>
@@ -56,13 +53,40 @@ export function AuthPanel({
                 {currentUser.name}
               </p>
               <p className="text-sm text-white/45">
-                {currentUser.handle} | {currentUser.email}
+                {currentUser.email}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-4 xl:w-[760px] xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="flex flex-col gap-3 xl:items-end">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-2xl border border-sea/20 bg-sea/10 px-4 py-3 text-sm text-sea">
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck size={16} />
+                Live identity enabled
+              </span>
+            </div>
+            <button
+              onClick={() => setIsEditingProfile((prev) => !prev)}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-sm text-white/80 transition hover:bg-blade hover:text-white"
+            >
+              <KeyRound size={16} />
+              {isEditingProfile ? "Close Profile" : "Edit Profile"}
+            </button>
+            <button
+              onClick={onSignOut}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-sm text-white/80 transition hover:bg-blade hover:text-white"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {isEditingProfile && (
+        <section className="flex flex-col gap-4 rounded-[28px] border border-white/10 bg-panel/90 px-6 py-5 shadow-panel">
           <div className="rounded-[28px] border border-white/10 bg-black/20 p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -76,11 +100,14 @@ export function AuthPanel({
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.28em] text-white/35">Profile</p>
-                  <p className="text-sm text-white/60">Name, handle, bio, and avatar</p>
+                  <p className="text-sm text-white/60">Name and avatar</p>
                 </div>
               </div>
               <button
-                onClick={onSaveProfile}
+                onClick={() => {
+                  onSaveProfile();
+                  setIsEditingProfile(false);
+                }}
                 disabled={loading}
                 className="rounded-2xl bg-ember px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
               >
@@ -95,46 +122,16 @@ export function AuthPanel({
                 className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
               />
               <input
-                value={profileHandle}
-                onChange={(event) => onProfileHandleChange(event.target.value)}
-                placeholder="@handle"
-                className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-              />
-              <input
                 value={profileAvatarUrl}
                 onChange={(event) => onProfileAvatarUrlChange(event.target.value)}
                 placeholder="Avatar image URL"
-                className="md:col-span-2 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-              />
-              <textarea
-                value={profileBio}
-                onChange={(event) => onProfileBioChange(event.target.value)}
-                placeholder="Short bio"
-                rows={3}
-                className="md:col-span-2 resize-none rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
+                className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
               />
             </div>
           </div>
-
-          <div className="flex flex-col gap-3 xl:items-end">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-2xl border border-sea/20 bg-sea/10 px-4 py-3 text-sm text-sea">
-              <span className="inline-flex items-center gap-2">
-                <ShieldCheck size={16} />
-                Live identity enabled
-              </span>
-            </div>
-            <button
-              onClick={onSignOut}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-sm text-white/80 transition hover:bg-blade hover:text-white"
-            >
-              <LogOut size={16} />
-              Sign Out
-            </button>
-          </div>
-        </div>
-        </div>
-      </section>
+        </section>
+      )}
+      </>
     );
   }
 

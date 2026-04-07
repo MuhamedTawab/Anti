@@ -868,15 +868,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         <AuthPanel
           currentUser={currentUser}
           profileName={profileName}
-          profileHandle={profileHandle}
           profileAvatarUrl={profileAvatarUrl}
-          profileBio={profileBio}
           loading={authLoading}
           message={authMessage}
           onProfileNameChange={handleProfileNameChange}
-          onProfileHandleChange={handleProfileHandleChange}
           onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
-          onProfileBioChange={handleProfileBioChange}
           onGoogleSignIn={handleGoogleSignIn}
           onSaveProfile={handleSaveProfile}
           onSignOut={handleSignOut}
@@ -928,15 +924,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       <AuthPanel
         currentUser={currentUser}
         profileName={profileName}
-        profileHandle={profileHandle}
         profileAvatarUrl={profileAvatarUrl}
-        profileBio={profileBio}
         loading={authLoading}
         message={authMessage}
         onProfileNameChange={handleProfileNameChange}
-        onProfileHandleChange={handleProfileHandleChange}
         onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
-        onProfileBioChange={handleProfileBioChange}
         onGoogleSignIn={handleGoogleSignIn}
         onSaveProfile={handleSaveProfile}
         onSignOut={handleSignOut}
@@ -980,15 +972,11 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
       <AuthPanel
         currentUser={currentUser}
         profileName={profileName}
-        profileHandle={profileHandle}
         profileAvatarUrl={profileAvatarUrl}
-        profileBio={profileBio}
         loading={authLoading}
         message={authMessage}
         onProfileNameChange={handleProfileNameChange}
-        onProfileHandleChange={handleProfileHandleChange}
         onProfileAvatarUrlChange={handleProfileAvatarUrlChange}
-        onProfileBioChange={handleProfileBioChange}
         onGoogleSignIn={handleGoogleSignIn}
         onSaveProfile={handleSaveProfile}
         onSignOut={handleSignOut}
