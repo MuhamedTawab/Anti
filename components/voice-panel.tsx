@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import clsx from "clsx";
-import { Hand, Headphones, Keyboard, Mic, MicOff, MonitorUp, MonitorX, Radio, Users, Volume2 } from "lucide-react";
+import { Hand, Headphones, Keyboard, Maximize2, Mic, MicOff, MonitorUp, MonitorX, Radio, Users, Volume2 } from "lucide-react";
 
 import type { Member } from "@/lib/types";
 
@@ -64,14 +64,21 @@ export function VoiceMemberRow({
         </div>
       </div>
       {videoStream && (
-        <div className="mt-2 overflow-hidden rounded-xl bg-black/40 aspect-video relative">
+        <div className="group/video mt-2 overflow-hidden rounded-xl bg-black/40 aspect-video relative">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
+          <button
+            onClick={() => videoRef.current?.requestFullscreen().catch(() => null)}
+            className="absolute top-2 right-2 rounded-xl bg-black/60 p-1.5 text-white/60 backdrop-blur opacity-0 transition group-hover/video:opacity-100 hover:text-white hover:bg-black/90"
+            title="Fullscreen"
+          >
+            <Maximize2 size={14} />
+          </button>
         </div>
       )}
     </div>

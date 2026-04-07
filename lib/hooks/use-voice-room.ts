@@ -414,6 +414,30 @@ export function useVoiceRoom(
     });
   }, [isMuted, isPushToTalk, isPushToTalkActive, joinedVoiceRoomId]);
 
+  // Effect: Prevent mic from going silent when window is minimized or tab is hidden
+  useEffect(() => {
+    if (!joinedVoiceRoomId) return;
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        // Resume AudioContext if it was suspended by the browser
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === "suspended") {
+          void ctx.resume().catch(() => null);
+        }
+        // Re-apply enabled state to audio tracks to counteract browser-level suppression
+        const audioTracks = localStreamRef.current?.getAudioTracks() ?? [];
+        const shouldTransmit = !isMuted && (!isPushToTalk || isPushToTalkActive);
+        audioTracks.forEach((track) => {
+          track.enabled = shouldTransmit;
+        });
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [joinedVoiceRoomId, isMuted, isPushToTalk, isPushToTalkActive, getAudioContext]);
+
   // Effect: Sync remote audio tracks to deafened state
   useEffect(() => {
     Object.values(remoteAudioRef.current).forEach((audio) => {

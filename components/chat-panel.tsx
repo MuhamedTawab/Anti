@@ -39,14 +39,24 @@ export function ChatPanel({
   const prevLengthRef = useRef(items.length);
   const [isUploading, setIsUploading] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset so the same file can be re-uploaded
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    setUploadError(null);
     setIsUploading(true);
+    // Show the banner immediately while uploading
+    if (!attachmentOpen) onToggleAttachment();
+
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
-      console.error("No supabase client available for upload");
+      setUploadError("Storage not available.");
       setIsUploading(false);
       return;
     }
@@ -62,6 +72,7 @@ export function ChatPanel({
       onAttachmentChange(publicUrlData.publicUrl);
     } else {
       console.error("Upload error:", error);
+      setUploadError(error?.message ?? "Upload failed. Check storage bucket permissions.");
     }
   };
 
@@ -194,26 +205,29 @@ export function ChatPanel({
       ) : null}
 
       <div className="border-t border-white/10 p-5">
-        {attachmentOpen || attachmentUrl ? (
+        {(attachmentOpen || attachmentUrl || isUploading) ? (
           <div className="mb-3 flex items-center gap-3 rounded-[24px] border border-white/10 bg-black/20 px-4 py-3">
-            <ImageIcon size={16} className="text-sea" />
-            <div className="flex-1 truncate text-sm text-sea">
+            <ImageIcon size={16} className={uploadError ? "text-ember" : "text-sea"} />
+            <div className="flex-1 truncate text-sm">
               {isUploading ? (
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2 text-sea">
                   <LoaderCircle size={14} className="animate-spin" /> Uploading image...
                 </span>
+              ) : uploadError ? (
+                <span className="text-ember text-xs">{uploadError}</span>
               ) : attachmentUrl ? (
-                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="underline hover:text-white transition">
+                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="text-sea underline hover:text-white transition">
                   Attached Image Ready
                 </a>
               ) : (
                 <span className="text-white/45">Ready to upload...</span>
               )}
             </div>
-            {(attachmentUrl || !isUploading) && (
+            {!isUploading && (
               <button
                 onClick={() => {
                   onAttachmentChange("");
+                  setUploadError(null);
                   if (attachmentOpen) onToggleAttachment();
                 }}
                 className="rounded-xl border border-white/10 bg-steel p-2 text-white/60 transition hover:bg-blade hover:text-white"
@@ -227,6 +241,7 @@ export function ChatPanel({
           <label className="cursor-pointer rounded-2xl bg-black/20 p-2 text-white/65 hover:bg-black/40 hover:text-white transition">
             <Paperclip size={16} />
             <input 
+              ref={fileInputRef}
               type="file" 
               className="hidden" 
               accept="image/*" 

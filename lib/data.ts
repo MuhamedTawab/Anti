@@ -380,7 +380,12 @@ export async function getBootstrap(identity?: AuthIdentity): Promise<BootstrapPa
   };
 }
 
-export async function getMessages(channelId: string, identity?: AuthIdentity): Promise<Message[]> {
+export async function getMessages(
+  channelId: string,
+  identity?: AuthIdentity,
+  before?: string,
+  limit = 50
+): Promise<Message[]> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
@@ -388,28 +393,38 @@ export async function getMessages(channelId: string, identity?: AuthIdentity): P
   }
 
   const channel = await assertChannelAccess(channelId, identity);
-  const { data, error } = await supabase
+  let query = supabase
     .from("messages")
-    .select("id,channel_id,author_id,author,handle,body,timestamp")
+    .select("id,channel_id,author_id,author,handle,body,timestamp,created_at")
     .eq("channel_id", channelId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (before) {
+    query = query.lt("created_at", before);
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) {
     return getMemoryMessages(channelId);
   }
 
+  // Reverse so messages are oldest-first for display
+  const rows = [...data].reverse();
+
   const attachmentMap = await getMessageAttachmentsMap(
-    data.map((row) => row.id),
+    rows.map((row) => row.id),
     "message_attachments",
     "message_id"
   );
   const profileMap = await getProfileRows(
-    Array.from(new Set(data.flatMap((row) => (row.author_id ? [row.author_id] : []))))
+    Array.from(new Set(rows.flatMap((row) => (row.author_id ? [row.author_id] : []))))
   );
   const ownerAccess =
     identity && channel ? await canModerateServer(identity, channel.server_id) : false;
 
-  return data.map((row) => ({
+  return rows.map((row) => ({
     id: row.id,
     channelId: row.channel_id,
     authorId: row.author_id,
@@ -419,7 +434,8 @@ export async function getMessages(channelId: string, identity?: AuthIdentity): P
     timestamp: row.timestamp,
     attachments: attachmentMap.get(row.id) ?? [],
     authorAvatarUrl: row.author_id ? profileMap.get(row.author_id)?.avatar_url ?? null : null,
-    canModerate: Boolean(identity && (row.author_id === identity.id || ownerAccess))
+    canModerate: Boolean(identity && (row.author_id === identity.id || ownerAccess)),
+    createdAt: row.created_at as string
   }));
 }
 
