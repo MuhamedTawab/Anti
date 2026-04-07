@@ -75,7 +75,7 @@ export interface NightlinkContextType {
   isPushToTalk: boolean;
   setIsPushToTalk: React.Dispatch<React.SetStateAction<boolean>>;
   isPushToTalkActive: boolean;
-  voiceConnectionStatus: "idle" | "connecting" | "connected" | "failed";
+  voiceConnectionStatus: "idle" | "connecting" | "connected" | "reconnecting" | "failed";
   outputVolume: number;
   setOutputVolume: (vol: number) => void;
   signalLevels: number[];

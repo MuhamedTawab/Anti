@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 
 export function useUiSounds() {
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  function playUiSound(kind: "send" | "receive" | "success" | "error" | "join" | "leave") {
+  const playUiSound = useCallback((kind: "send" | "receive" | "success" | "error" | "join" | "leave") => {
     if (typeof window === "undefined") {
       return;
     }
@@ -74,9 +74,9 @@ export function useUiSounds() {
 
       startAt += tone.duration * 0.75;
     });
-  }
+  }, []);
 
-  function getAudioContext() {
+  const getAudioContext = useCallback(() => {
     if (typeof window === "undefined") {
       return null;
     }
@@ -92,7 +92,7 @@ export function useUiSounds() {
     const context = audioContextRef.current ?? new AudioContextClass();
     audioContextRef.current = context;
     return context;
-  }
+  }, []);
 
   return { playUiSound, getAudioContext };
 }
