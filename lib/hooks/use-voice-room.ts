@@ -469,7 +469,7 @@ export function useVoiceRoom(
           }
         }
 
-        // Initialize Background Worker for High-Precision Signaling
+        // Initialize Background Worker for High-Precision Signaling (V8: 8s interval)
         if (voiceWorkerRef.current) voiceWorkerRef.current.terminate();
         
         const worker = new Worker(new URL('/voice-worker.js', window.location.origin));
@@ -478,15 +478,15 @@ export function useVoiceRoom(
           if (e.data.type === 'tick') {
             if (voiceSignalChannelRef.current && currentUser) {
               void voiceSignalChannelRef.current.send({
-                type: "broadcast",
-                event: "ping",
-                payload: { userId: currentUser.id, timestamp: Date.now() }
+                type: 'broadcast',
+                event: 'ping',
+                payload: { userId: currentUser.id, heartbeat: true }
               });
             }
           }
         };
         
-        worker.postMessage({ type: 'start', payload: { interval: 15000 } });
+        worker.postMessage({ type: 'start', payload: { interval: 8000 } });
         voiceWorkerRef.current = worker;
       }
     } catch {
@@ -645,23 +645,42 @@ export function useVoiceRoom(
     return () => window.removeEventListener("keydown", handleCapture, true);
   }, [isRecordingPTT, setPushToTalkKey]);
 
-  // V7: MediaSession Heartbeat to force OS priority
+  // V8: Periodic Hardware Polling & MediaSession Action Handlers
   useEffect(() => {
     if (!joinedVoiceRoomId || typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
       return;
     }
 
+    // Tell the OS we are an interactive communication tab
     navigator.mediaSession.playbackState = 'playing';
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: 'Nightlink Voice HQ',
-      artist: 'Communication Channel',
-      album: 'Active Session'
+      title: 'Nightlink Voice Call',
+      artist: 'Active Communication',
+      album: 'Nightlink Platform',
+      artwork: [
+        { src: '/logo.png', sizes: '512x512', type: 'image/png' }
+      ]
     });
+
+    // Dummy action handlers to keep the session active
+    const dummyHandler = () => { console.log("[Voice] MediaSession action ignored."); };
+    navigator.mediaSession.setActionHandler('play', dummyHandler);
+    navigator.mediaSession.setActionHandler('pause', dummyHandler);
+    navigator.mediaSession.setActionHandler('stop', () => void leaveVoiceRoom());
+
+    // Hardware Polling: Keep the mic stack alive
+    const pollInterval = setInterval(() => {
+      void navigator.mediaDevices.enumerateDevices().catch(() => null);
+    }, 30000);
 
     return () => {
       navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.setActionHandler('play', null);
+      navigator.mediaSession.setActionHandler('pause', null);
+      navigator.mediaSession.setActionHandler('stop', null);
+      clearInterval(pollInterval);
     };
-  }, [joinedVoiceRoomId]);
+  }, [joinedVoiceRoomId, leaveVoiceRoom]);
 
   // Effect: Voice signal channel setup
   useEffect(() => {

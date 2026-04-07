@@ -1,11 +1,11 @@
 /**
- * Nightlink Voice Persistence Worker V6
+ * Nightlink Voice Persistence Worker V8 (Edge Optimized)
  * This worker maintains a high-precision background timer AND
- * perform network "warming" to prevent the OS from sleeping the network card.
+ * perform frequent network "warming" to prevent Edge's Efficiency Mode from sleeping.
  */
 
 let timerId = null;
-let intervalMs = 15000;
+let intervalMs = 8000; // Increased frequency for V8
 
 self.onmessage = function(e) {
   const { type, payload } = e.data;
@@ -13,7 +13,7 @@ self.onmessage = function(e) {
   if (type === 'start') {
     if (timerId) clearInterval(timerId);
     
-    intervalMs = payload?.interval || 15000;
+    intervalMs = payload?.interval || 8000;
     
     timerId = setInterval(() => {
       self.postMessage({ type: 'tick', timestamp: Date.now() });
@@ -22,7 +22,7 @@ self.onmessage = function(e) {
       fetch('/api/voice/session?pulse=1').catch(() => null);
     }, intervalMs);
     
-    console.log(`[VoiceWorker] Unstoppable timer started at ${intervalMs}ms`);
+    console.log(`[VoiceWorker] Edge Optimized timer started at ${intervalMs}ms`);
   }
 
   if (type === 'stop') {
