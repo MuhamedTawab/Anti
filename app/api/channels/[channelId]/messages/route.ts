@@ -10,9 +10,11 @@ export async function GET(
 ) {
   const { channelId } = await params;
   const identity = await getAuthenticatedIdentity(request);
+  const before = request.nextUrl.searchParams.get("before") ?? undefined;
+  const limit = Number(request.nextUrl.searchParams.get("limit") ?? 50);
 
   return NextResponse.json({
-    messages: await getMessages(channelId, identity ?? undefined)
+    messages: await getMessages(channelId, identity ?? undefined, before, limit)
   });
 }
 

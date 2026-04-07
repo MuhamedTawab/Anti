@@ -18,7 +18,10 @@ export function ChatPanel({
   onAttachmentChange,
   onToggleAttachment,
   onSend,
-  onDeleteMessage
+  onDeleteMessage,
+  onLoadMore,
+  hasMore,
+  isLoadingMore
 }: {
   channelName: string;
   channelPrefix: "#" | "@";
@@ -34,9 +37,14 @@ export function ChatPanel({
   onToggleAttachment: () => void;
   onSend: () => void;
   onDeleteMessage: (messageId: string) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(items.length);
+  const prevScrollHeightRef = useRef(0);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,20 +84,32 @@ export function ChatPanel({
     }
   };
 
-  // Only scroll when new messages are added AND user is already near the bottom
+  // Preserve scroll position when older messages are prepended
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-    if (items.length <= prevLengthRef.current) {
-      prevLengthRef.current = items.length;
-      return;
+    if (items.length > prevLengthRef.current) {
+      const heightDiff = container.scrollHeight - prevScrollHeightRef.current;
+      if (heightDiff > 0 && container.scrollTop < 100) {
+        // We just loaded older messages at the top — maintain position
+        container.scrollTop = heightDiff;
+      }
     }
     prevLengthRef.current = items.length;
+    prevScrollHeightRef.current = container.scrollHeight;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]);
+
+  // Only auto-scroll to bottom when a new message arrives AND user is already near the bottom
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
     if (distanceFromBottom < 200) {
       container.scrollTop = container.scrollHeight;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
 
   // Scroll to bottom when switching channels
@@ -97,9 +117,29 @@ export function ChatPanel({
     const container = scrollRef.current;
     if (!container) return;
     container.scrollTop = container.scrollHeight;
-    prevLengthRef.current = items.length;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    prevLengthRef.current = 0;
+    prevScrollHeightRef.current = 0;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelName]);
+
+  // IntersectionObserver — fires onLoadMore when the top sentinel enters the viewport
+  useEffect(() => {
+    if (!onLoadMore || !hasMore) return;
+    const sentinel = topSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          prevScrollHeightRef.current = scrollRef.current?.scrollHeight ?? 0;
+          onLoadMore();
+        }
+      },
+      { root: scrollRef.current, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [onLoadMore, hasMore]);
 
   return (
     <section className="flex h-[75vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[85vh]">
@@ -122,6 +162,18 @@ export function ChatPanel({
       </header>
 
       <div ref={scrollRef} className="chat-scroll flex-1 min-h-0 space-y-5 overflow-y-auto px-6 py-6">
+        {/* Top sentinel — triggers older message load when scrolled into view */}
+        <div ref={topSentinelRef} className="h-1 w-full" />
+        {isLoadingMore && (
+          <div className="flex items-center justify-center gap-2 pb-2 text-sm text-white/40">
+            <LoaderCircle size={14} className="animate-spin" /> Loading older messages...
+          </div>
+        )}
+        {!isLoadingMore && hasMore === false && items.length > 0 && (
+          <div className="pb-3 text-center text-xs uppercase tracking-[0.25em] text-white/20">
+            Beginning of channel
+          </div>
+        )}
         {items.map((message) => (
           <article
             key={message.id}

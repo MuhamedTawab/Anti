@@ -19,6 +19,7 @@ export interface Message {
   handle: string;
   body: string;
   timestamp: string;
+  createdAt?: string;
   attachments?: MessageAttachment[];
   authorAvatarUrl?: string | null;
   canModerate?: boolean;

@@ -121,6 +121,8 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const [isPending, startTransition] = useTransition();
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
   const [joinInviteModalOpen, setJoinInviteModalOpen] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const { playUiSound, getAudioContext } = useUiSounds();
 
@@ -287,6 +289,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         [channelId]: payload.messages
       }
     }));
+    setHasMore(payload.messages.length >= 50);
   }
 
   async function loadDirectMessages(threadId: string) {
@@ -309,6 +312,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         [threadId]: payload.messages
       }
     }));
+    setHasMore(payload.messages.length >= 50);
   }
 
   function handleTextChannelSelect(channelId: string) {
@@ -343,7 +347,48 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     });
   }
 
+  async function handleLoadMore() {
+    if (isLoadingMore || !hasMore) return;
+    const msgs = displayedMessages;
+    const oldest = msgs[0];
+    const before = oldest?.createdAt;
+    if (!before) return;
+
+    const authHeaders = getAuthHeaders();
+    setIsLoadingMore(true);
+
+    try {
+      const url = viewMode === "dm" && activeThread
+        ? `/api/dm/${activeThread.id}/messages?before=${encodeURIComponent(before)}`
+        : `/api/channels/${activeChatKey}/messages?before=${encodeURIComponent(before)}`;
+
+      const resp = await fetch(url, {
+        headers: { "Content-Type": "application/json", ...(authHeaders ?? {}) }
+      });
+      if (!resp.ok) return;
+
+      const payload = await resp.json() as { messages?: Message[] };
+      const older = payload.messages ?? [];
+
+      if (older.length < 50) setHasMore(false);
+      if (older.length === 0) return;
+
+      setData((current) => ({
+        ...current,
+        messages: {
+          ...current.messages,
+          [activeChatKey]: [...older, ...(current.messages[activeChatKey] ?? [])]
+        }
+      }));
+    } catch {
+      // silently fail — user can scroll again to retry
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
+
   async function handleSendMessage() {
+
     const body = composerValue.trim();
     const nextAttachmentUrl = attachmentUrl.trim();
 
@@ -1025,6 +1070,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           onToggleAttachment={() => setAttachmentOpen((current) => !current)}
           onSend={handleSendMessage}
           onDeleteMessage={handleDeleteMessage}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={handleLoadMore}
         />
         <VoicePanel
           roomName={activeVoiceChannel?.name ?? "No Room"}
