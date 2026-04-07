@@ -18,6 +18,7 @@ import clsx from "clsx";
 
 import { useNightlink } from "@/lib/context";
 import { ChatPanel } from "./chat-panel";
+import { AuthPanel } from "./auth-panel";
 
 export function SocialPanel() {
   const {
@@ -92,6 +93,15 @@ export function SocialPanel() {
                )}
              >
                Blocked
+             </button>
+             <button 
+               onClick={() => setActiveSocialTab("profile")}
+               className={clsx(
+                 "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                 activeSocialTab === "profile" ? "bg-white/10 text-white" : "text-[#9da0a7] hover:bg-white/5 hover:text-white"
+               )}
+             >
+               Profile
              </button>
              <button 
                onClick={() => setActiveSocialTab("friends")} // Default to friends for Add Friend
@@ -270,6 +280,12 @@ export function SocialPanel() {
                   )}
                 </div>
               </section>
+            </div>
+          )}
+
+          {activeSocialTab === "profile" && (
+            <div className="animate-in fade-in zoom-in-95 duration-500">
+               <AuthPanel />
             </div>
           )}
 
