@@ -31,7 +31,7 @@ export function ServerRail() {
               : "bg-[#1e1f22] text-[#9da0a7] hover:bg-[#ff3b5f] hover:text-white hover:rounded-xl scale-95 hover:scale-100"
           )}
         >
-          <img src="/logo.jpg" alt="Home" className={clsx("h-7 w-7 object-contain transition-transform", activeId === null ? "scale-110" : "opacity-50 group-hover:opacity-100")} />
+          <Users size={20} />
           {activeId === null && (
             <div className="absolute -left-3 h-8 w-1 rounded-r-full bg-white animate-in slide-in-from-left-2 duration-300" />
           )}

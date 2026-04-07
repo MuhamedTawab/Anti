@@ -62,8 +62,8 @@ export function AuthPanel() {
       <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-[#1e1f22] to-[#111214] p-8 shadow-2xl animate-in zoom-in-95 duration-500">
         <div className="space-y-6">
           <div className="flex flex-col items-center text-center space-y-2">
-            <div className="h-20 w-20 rounded-3xl bg-white/5 flex items-center justify-center p-3 mb-2 overflow-hidden">
-               <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain" />
+            <div className="h-16 w-16 rounded-3xl bg-[#ff3b5f]/10 flex items-center justify-center text-[#ff3b5f] mb-2">
+              <ShieldCheck size={32} />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-white uppercase">Identity Required</h2>
             <p className="text-sm text-[#9da0a7] font-medium leading-relaxed">
