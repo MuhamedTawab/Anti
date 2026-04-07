@@ -3,9 +3,9 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { serverId: string } }
+  { params }: { params: Promise<{ serverId: string }> }
 ) {
-  const serverId = params.serverId;
+  const { serverId } = await params;
   const supabase = getSupabaseServerClient();
   if (!supabase) return NextResponse.json({ error: "DB Connect Fail" }, { status: 500 });
 
