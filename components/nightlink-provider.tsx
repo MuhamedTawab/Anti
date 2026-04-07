@@ -282,12 +282,17 @@ export function NightlinkProvider({
       }
 
       // V15: Instant Hydration - Append message even if not active
-      if (message) {
+      if (payload.payload.message) {
+        const msg = payload.payload.message as Message;
+        const prevId = payload.payload.previousId as string | undefined;
+        
         setData(prev => ({
           ...prev,
           messages: {
             ...prev.messages,
-            [channelId]: mergeMessage(prev.messages[channelId] || [], message)
+            [channelId]: prevId 
+              ? replaceMessage(prev.messages[channelId] || [], prevId, msg)
+              : mergeMessage(prev.messages[channelId] || [], msg)
           }
         }));
       }
@@ -449,6 +454,21 @@ export function NightlinkProvider({
       const nextMessage = payload?.message;
       if (!response.ok || !nextMessage) throw new Error(payload?.error ?? "Failed to send.");
       setData((cur) => ({ ...cur, messages: { ...cur.messages, [activeTargetId]: replaceMessage(cur.messages[activeTargetId] ?? [], optimisticId, nextMessage) } }));
+      
+      // V15.2: Success Pulse - Broadcast the final message + the ID it replaces
+      if (globalChannelRef.current) {
+        void globalChannelRef.current.send({
+          type: 'broadcast',
+          event: 'new-message',
+          payload: { 
+            channelId: activeTargetId, 
+            authorId: currentUser.id, 
+            message: nextMessage,
+            previousId: optimisticId 
+          }
+        });
+      }
+
       playUiSound("send");
     } catch (e: any) {
       setComposerValue(body);
