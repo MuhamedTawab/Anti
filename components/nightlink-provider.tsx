@@ -1,6 +1,18 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useTransition, ReactNode } from "react";
+import { 
+  createContext, 
+  useContext, 
+  useState, 
+  useMemo, 
+  useCallback, 
+  useEffect, 
+  useRef, 
+  useTransition,
+  startTransition,
+  ReactNode
+} from "react";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { useAuthSync } from "@/lib/hooks/use-auth-sync";
 import { useWorkspaceData } from "@/lib/hooks/use-workspace-data";
@@ -14,8 +26,9 @@ import type {
   Message, 
   SocialPayload, 
   AuthIdentity, 
+  Channel, 
   Server, 
-  Channel 
+  Member 
 } from "@/lib/types";
 
 function getInitialTextChannel(server: Server): Channel {
@@ -137,6 +150,9 @@ export function NightlinkProvider({
     setData as any,
     playUiSound
   );
+  // V14 Global State
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const globalChannelRef = useRef<RealtimeChannel | null>(null);
 
   const {
     joinedVoiceRoomId,
@@ -184,27 +200,34 @@ export function NightlinkProvider({
   const onlineFriendIds = Object.keys(presenceMembers);
   const activeTypingMembers = Object.values(typingMembers).filter((m) => m.channelId === activeChatKey && m.expiresAt > Date.now()).map((m) => m.name);
 
-  const seenCountRef = useRef<Record<string, number>>({});
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-
+  // V14: Global Pulse Listener
   useEffect(() => {
-    if (!activeChatKey) return;
-    seenCountRef.current[activeChatKey] = (data.messages[activeChatKey] ?? []).length;
-    setUnreadCounts((prev) => ({ ...prev, [activeChatKey]: 0 }));
-  }, [activeChatKey, data.messages]);
+    if (!supabase || !currentUser) return;
 
-  useEffect(() => {
-    const next: Record<string, number> = {};
-    for (const [channelId, messages] of Object.entries(data.messages)) {
-      if (channelId === activeChatKey) continue;
-      const seen = seenCountRef.current[channelId] ?? messages.length;
-      const newCount = Math.max(0, messages.length - seen);
-      if (newCount > 0) next[channelId] = newCount;
-    }
-    if (Object.keys(next).length > 0) {
-      setUnreadCounts((prev) => ({ ...prev, ...next }));
-    }
-  }, [data.messages, activeChatKey]);
+    const channel = supabase.channel('nightlink-global');
+    
+    channel.on('broadcast', { event: 'new-message' }, (payload) => {
+      const { channelId, authorId } = payload.payload as { channelId: string; authorId: string };
+      if (authorId === currentUser.id) return;
+
+      const isWindowHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      const isNotActiveChannel = channelId !== activeChatKey;
+      
+      if (isWindowHidden || isNotActiveChannel) {
+        playUiSound("receive");
+      }
+
+      if (isNotActiveChannel) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [channelId]: (prev[channelId] || 0) + 1
+        }));
+      }
+    }).subscribe();
+
+    globalChannelRef.current = channel;
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase, currentUser, activeChatKey, playUiSound]);
 
   async function handleServerSelect(serverId: string) {
     const nextServer = data.servers.find((s) => s.id === serverId) ?? (data.servers[0] ?? null);
@@ -220,37 +243,93 @@ export function NightlinkProvider({
     setError(null);
   }
 
-  async function loadChannelMessages(channelId: string) {
-    const headers = getAuthHeaders() ?? undefined;
-    const response = await fetch(`/api/channels/${channelId}/messages`, { cache: "no-store", headers });
-    const payload = (await response.json()) as { messages: Message[] };
-    setData((current) => ({
-      ...current,
-      messages: { ...current.messages, [channelId]: payload.messages }
-    }));
-    setHasMore(payload.messages.length >= 50);
-  }
+  const loadDirectMessages = useCallback(async (threadId: string) => {
+    // V14: Cache-first for DMs
+    const hasCache = (data.messages[threadId] ?? []).length > 0;
+    if (!hasCache) setIsLoadingMore(true);
 
-  async function loadDirectMessages(threadId: string) {
-    const headers = getAuthHeaders();
-    if (!headers) return;
-    const response = await fetch(`/api/dm/${threadId}/messages`, { cache: "no-store", headers });
-    const payload = (await response.json()) as { messages: Message[] };
-    setData((current) => ({
-      ...current,
-      messages: { ...current.messages, [threadId]: payload.messages }
-    }));
-    setHasMore(payload.messages.length >= 50);
-  }
+    try {
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`/api/dm/${threadId}/messages`, { cache: "no-store", headers: authHeaders ?? {} });
+      if (response.ok) {
+        const payload = (await response.json()) as { messages: Message[] };
+        setData((current) => ({
+          ...current,
+          messages: { ...current.messages, [threadId]: payload.messages }
+        }));
+        setHasMore(payload.messages.length >= 50);
+      }
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [data.messages, getAuthHeaders, setData]);
 
-  function handleTextChannelSelect(channelId: string) {
-    setActiveTextChannelId(channelId);
+  // V14: Global Message Pulse Listener
+  useEffect(() => {
+    if (!supabase || !currentUser) return;
+
+    const channel = supabase.channel('nightlink-global');
+    
+    channel.on('broadcast', { event: 'new-message' }, (payload) => {
+      const { channelId, authorId } = payload.payload as { channelId: string; authorId: string };
+      if (authorId === currentUser.id) return;
+
+      const isWindowHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      const isNotActiveChat = channelId !== activeChatKey;
+      
+      if (isWindowHidden || isNotActiveChat) {
+        playUiSound("receive");
+      }
+
+      if (isNotActiveChat) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [channelId]: (prev[channelId] || 0) + 1
+        }));
+      }
+    }).subscribe();
+
+    globalChannelRef.current = channel;
+    return () => { void supabase.removeChannel(channel); };
+  }, [supabase, currentUser, activeChatKey, playUiSound]);
+
+  const loadChannelMessages = useCallback(async (channelId: string) => {
+    // V14: Only set loading visual if we don't have these messages cached already
+    const hasCache = (data.messages[channelId] ?? []).length > 0;
+    
+    try {
+      const response = await fetch(`/api/messages?channelId=${channelId}`);
+      if (response.ok) {
+        const messages = await response.json() as Message[];
+        setData((current) => ({
+          ...current,
+          messages: {
+            ...current.messages,
+            [channelId]: messages
+          }
+        }));
+      }
+    } catch(e) {
+      console.error("Pulse: History sync failed", e);
+    }
+  }, [data.messages, setData]);
+
+  const handleTextChannelSelect = useCallback((id: string) => {
+    setActiveTextChannelId(id);
+    setActiveThreadId(null);
     setViewMode("channel");
     setError(null);
-    startTransition(() => {
-      loadChannelMessages(channelId).catch(() => setError("Could not load messages."));
+    
+    // Clear unreads
+    setUnreadCounts(prev => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
     });
-  }
+
+    // Load messages with background cache awareness
+    loadChannelMessages(id).catch(() => setError("Could not sync message history."));
+  }, [setActiveTextChannelId, setActiveThreadId, setViewMode, loadChannelMessages]);
 
   async function handleVoiceChannelSelect(channelId: string) {
     if (joinedVoiceRoomId) await leaveVoiceRoom();
@@ -264,18 +343,24 @@ export function NightlinkProvider({
     setActiveThreadId(null);
   }
 
-  function handleOpenThread(id: string) {
+  const handleOpenThread = useCallback(async (id: string) => {
     // Try to find if 'id' is a thread.id or a friendId
     const thread = socialData.directThreads.find((t) => t.id === id || t.friendId === id);
     const resolvedThreadId = thread ? thread.id : id;
 
     setActiveThreadId(resolvedThreadId);
     setViewMode("dm");
-    setError(null);
-    startTransition(() => {
-      loadDirectMessages(resolvedThreadId).catch(() => setError("Could not load private messages."));
+    
+    // Clear unread for this DM thread
+    setUnreadCounts(prev => {
+      const next = { ...prev };
+      delete next[resolvedThreadId];
+      return next;
     });
-  }
+
+    setError(null);
+    loadDirectMessages(resolvedThreadId).catch(() => setError("Could not sync message history."));
+  }, [socialData.directThreads, setActiveThreadId, setViewMode, loadDirectMessages]);
 
   async function handleLoadMore() {
     if (isLoadingMore || !hasMore) return;
@@ -322,6 +407,15 @@ export function NightlinkProvider({
       authorAvatarUrl: currentUser.avatarUrl ?? null,
       canModerate: true
     };
+    // V14: Broadcast to global pulse for notifications
+    if (globalChannelRef.current) {
+      void globalChannelRef.current.send({
+        type: 'broadcast',
+        event: 'new-message',
+        payload: { channelId: activeChatKey, authorId: currentUser.id }
+      });
+    }
+
     setComposerValue("");
     setAttachmentUrl("");
     setAttachmentOpen(false);
