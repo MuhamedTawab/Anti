@@ -148,6 +148,11 @@ async function getAccessibleServers(identity?: AuthIdentity) {
 
   const servers: Server[] = (serverRows ?? [])
     .filter((server) => {
+      // V13: Filter out default demo servers (Anti HQ and Signal Lab)
+      if (server.id === "hq" || server.id === "design") {
+        return false;
+      }
+
       if (bannedServerIds.has(server.id)) {
         return false;
       }
