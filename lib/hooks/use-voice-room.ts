@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import type { AuthIdentity } from "@/lib/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { voiceEngine } from "../voice-engine";
 
 export interface VoiceRoomResult {
   joinedVoiceRoomId: string | null;
@@ -53,9 +55,12 @@ export function useVoiceRoom(
   setError: (err: string | null) => void,
   sendVoiceSignal: (payload: Record<string, unknown>, channel: RealtimeChannel | null) => Promise<void>
 ): VoiceRoomResult {
-  const voiceSignalChannelRef = useRef<RealtimeChannel | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
-  const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
+  // V13: External Singleton Migration
+  // Moving all core voice entities out of the React lifecycle
+  // to prevent "Focus Death" on Edge/Chrome.
+  const localStreamRef = useRef<MediaStream | null>(voiceEngine.localStream);
+  const peerConnectionsRef = useRef<Record<string, RTCPeerConnection>>(voiceEngine.peerConnections);
+  const voiceSignalChannelRef = useRef<any>(voiceEngine.signalingChannel);
   const remoteAudioRef = useRef<Record<string, HTMLAudioElement>>({});
   const localAnalyserRef = useRef<AnalyserNode | null>(null);
   const remoteAnalyserRefs = useRef<Record<string, AnalyserNode>>({});
@@ -289,6 +294,10 @@ export function useVoiceRoom(
     }
 
     const peer = new RTCPeerConnection(getRtcConfiguration());
+    
+    // V13: Commit to singleton
+    peerConnectionsRef.current[remoteUserId] = peer;
+    voiceEngine.peerConnections[remoteUserId] = peer;
 
     localStreamRef.current?.getTracks().forEach((track) => {
       if (localStreamRef.current) {
@@ -369,7 +378,6 @@ export function useVoiceRoom(
       }
     };
 
-    peerConnectionsRef.current[remoteUserId] = peer;
     return peer;
   }
 
@@ -386,10 +394,9 @@ export function useVoiceRoom(
     setVoiceConnectionStatus("connecting");
 
     try {
-      localStreamRef.current = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-        video: false
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStreamRef.current = stream;
+      voiceEngine.localStream = stream;
       attachAnalyser(localStreamRef.current, "local");
       // Triggered automatically by effect, but ensure immediate sync:
       const audioTracks = localStreamRef.current.getAudioTracks();
@@ -742,6 +749,16 @@ export function useVoiceRoom(
       return;
     }
 
+    // V13: Persist channel to singleton
+    if (voiceEngine.signalingChannel) {
+      voiceSignalChannelRef.current = voiceEngine.signalingChannel;
+      // Also ensure status is connected if we were already connected
+      if (voiceEngine.isConnected) {
+        setVoiceConnectionStatus("connected");
+      }
+      return; 
+    }
+
     const channel = supabase
       .channel(`nightlink-voice:${joinedVoiceRoomId}`)
       .on("broadcast", { event: "join" }, async (payload) => {
@@ -778,7 +795,8 @@ export function useVoiceRoom(
 
         if (!signal.to || !signal.from || signal.to !== currentUser.id) return;
 
-        const peer = createPeerConnection(signal.from);
+        let peer = peerConnectionsRef.current[signal.from];
+        if (!peer) peer = createPeerConnection(signal.from);
 
         // V6: Add ICE State monitoring to auto-restart on disconnect
         peer.oniceconnectionstatechange = () => {
@@ -812,31 +830,29 @@ export function useVoiceRoom(
         if (!next.userId) return;
         cleanupPeer(next.userId);
       })
-      .subscribe(async (status) => {
-        if (status !== "SUBSCRIBED") return;
-        await channel.send({
-          type: "broadcast",
-          event: "join",
-          payload: { userId: currentUser.id }
-        });
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          voiceEngine.isConnected = true;
+          voiceEngine.signalingChannel = channel;
+          voiceSignalChannelRef.current = channel;
+          setVoiceConnectionStatus("connected");
+          void channel.send({
+            type: 'broadcast',
+            event: 'join',
+            payload: { userId: currentUser.id }
+          });
+        }
       });
 
     voiceSignalChannelRef.current = channel;
 
     return () => {
-      if (voiceSignalChannelRef.current?.topic === channel.topic) {
-        void channel.send({
-          type: "broadcast",
-          event: "leave",
-          payload: { userId: currentUser.id }
-        });
-        voiceSignalChannelRef.current = null;
-      }
-      cleanupVoiceSession();
-      void supabase.removeChannel(channel);
+      // V13: Do NOTHING on unmount. We want the channel to live in the voiceEngine singleton.
+      // Unsubscribing here is what caused the "Focus Death" on Edge.
+      console.log("[Voice] V13 Preservation: Holding signaling channel in singleton.");
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, joinedVoiceRoomId, supabase]);
+  }, [currentUser?.id, joinedVoiceRoomId, supabase]);
 
   // Effect: Analyser activity loop
   useEffect(() => {
