@@ -157,6 +157,8 @@ export function NightlinkProvider({
     handleVoiceToggle,
     pushToTalkKey,
     setPushToTalkKey,
+    isRecordingPTT,
+    setIsRecordingPTT,
     isScreenSharing,
     handleScreenShareToggle,
     remoteVideoStreams
@@ -462,6 +464,7 @@ export function NightlinkProvider({
     activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts,
     error, setError, composerValue, setComposerValue, attachmentUrl, setAttachmentUrl, attachmentOpen, setAttachmentOpen, isSending, isPending, hasMore, isLoadingMore,
     joinedVoiceRoomId, isVoiceConnecting, isMuted, setIsMuted, isDeafened, setIsDeafened, isPushToTalk, setIsPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, setOutputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams,
+    pushToTalkKey, setPushToTalkKey, isRecordingPTT, setIsRecordingPTT,
     handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest,
     profileName, profileHandle, profileAvatarUrl, profileBio, handleProfileNameChange: setProfileName, handleProfileHandleChange: setProfileHandle, handleProfileAvatarUrlChange: setProfileAvatarUrl, handleProfileBioChange: setProfileBio, handleSaveProfile,
     createServerModalOpen, setCreateServerModalOpen, joinInviteModalOpen, setJoinInviteModalOpen, activeInviteCode, setActiveInviteCode,

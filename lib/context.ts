@@ -82,6 +82,10 @@ export interface NightlinkContextType {
   participantLevels: Record<string, number>;
   isScreenSharing: boolean;
   remoteVideoStreams: Record<string, MediaStream>;
+  pushToTalkKey: string;
+  setPushToTalkKey: (key: string) => void;
+  isRecordingPTT: boolean;
+  setIsRecordingPTT: (val: boolean) => void;
 
   // Handlers
   handleSendMessage: () => Promise<void>;

@@ -120,7 +120,11 @@ export function VoicePanel() {
     handleScreenShareToggle,
     handleVoiceToggle,
     remoteVideoStreams,
-    participantLevels
+    participantLevels,
+    pushToTalkKey,
+    setPushToTalkKey,
+    isRecordingPTT,
+    setIsRecordingPTT
   } = useNightlink();
 
   const joined = !!joinedVoiceRoomId;
@@ -243,16 +247,44 @@ export function VoicePanel() {
             >
               {isScreenSharing ? <MonitorX size={18} /> : <MonitorUp size={18} />}
             </button>
-            <button
-              onClick={() => setIsPushToTalk((v) => !v)}
-              className={clsx(
-                "flex h-10 items-center justify-center rounded-xl transition-all",
-                pushToTalk ? "bg-[#ff3b5f]/10 text-[#ff3b5f] ring-1 ring-[#ff3b5f]/50" : "bg-white/5 text-[#9da0a7] hover:bg-white/10"
-              )}
-              title="Push to Talk"
-            >
-              {pushToTalk ? <Hand size={18} /> : <Keyboard size={18} />}
-            </button>
+            <div className={clsx(
+              "flex flex-1 items-center gap-1 rounded-xl p-1 transition-all",
+              pushToTalk ? "bg-[#ff3b5f]/10 ring-1 ring-[#ff3b5f]/30" : "bg-white/5"
+            )}>
+              <button
+                onClick={() => setIsPushToTalk((v) => !v)}
+                className={clsx(
+                  "flex h-8 w-8 items-center justify-center rounded-lg transition-all hover:scale-105 active:scale-95",
+                  pushToTalk ? "bg-[#ff3b5f] text-white shadow-lg shadow-[#ff3b5f]/20" : "text-[#9da0a7] hover:bg-white/5 hover:text-white"
+                )}
+                title="Toggle Push to Talk"
+              >
+                {pushToTalk ? <Hand size={16} /> : <Keyboard size={16} />}
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (!pushToTalk) setIsPushToTalk(true);
+                  setIsRecordingPTT(true);
+                }}
+                className={clsx(
+                  "flex-1 h-8 px-2 flex items-center justify-center gap-1.5 rounded-lg border border-transparent transition-all",
+                  isRecordingPTT 
+                    ? "bg-[#ff3b5f]/20 border-[#ff3b5f]/40 text-[#ff3b5f] animate-pulse" 
+                    : "hover:bg-white/5 text-[9px] font-black uppercase tracking-widest text-[#9da0a7] hover:text-white"
+                )}
+                title="Change PTT Key"
+              >
+                {isRecordingPTT ? (
+                  <span className="animate-in fade-in zoom-in-75 duration-300">Press Key...</span>
+                ) : (
+                  <>
+                    <span className="opacity-40 font-bold">Key:</span>
+                    <span className="text-white truncate max-w-[50px]">{pushToTalkKey.replace('Key', '').replace('Digit', '')}</span>
+                  </>
+                )}
+              </button>
+            </div>
             <button 
               className="flex h-10 items-center justify-center rounded-xl bg-white/5 text-[#9da0a7] hover:bg-white/10 transition-all"
               title="Activity"

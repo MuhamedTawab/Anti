@@ -24,6 +24,8 @@ export interface VoiceRoomResult {
   remoteVideoStreams: Record<string, MediaStream>;
   pushToTalkKey: string;
   setPushToTalkKey: (key: string) => void;
+  isRecordingPTT: boolean;
+  setIsRecordingPTT: (val: boolean) => void;
   voiceConnectionStatus: "idle" | "connecting" | "connected" | "reconnecting" | "failed";
   setVoiceConnectionStatus: React.Dispatch<React.SetStateAction<"idle" | "connecting" | "connected" | "reconnecting" | "failed">>;
   outputVolume: number;
@@ -76,6 +78,8 @@ export function useVoiceRoom(
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [remoteVideoStreams, setRemoteVideoStreams] = useState<Record<string, MediaStream>>({});
   const [pushToTalkKey, setPushToTalkKeyState] = useState("Space");
+
+  const [isRecordingPTT, setIsRecordingPTT] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("nightlink_ptt_key");
@@ -623,7 +627,41 @@ export function useVoiceRoom(
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
     };
-  }, [isPushToTalk, isPushToTalkActive, joinedVoiceRoomId, pushToTalkKey]);
+  }, [isPushToTalk, isPushToTalkActive, joinedVoiceRoomId, pushToTalkKey, setIsPushToTalkActive]);
+
+  // Effect: Capture next key for PTT
+  useEffect(() => {
+    if (!isRecordingPTT) return;
+
+    function handleCapture(event: KeyboardEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      setPushToTalkKey(event.code);
+      setIsRecordingPTT(false);
+      console.log(`[Voice] PTT Key updated to: ${event.code}`);
+    }
+
+    window.addEventListener("keydown", handleCapture, true);
+    return () => window.removeEventListener("keydown", handleCapture, true);
+  }, [isRecordingPTT, setPushToTalkKey]);
+
+  // V7: MediaSession Heartbeat to force OS priority
+  useEffect(() => {
+    if (!joinedVoiceRoomId || typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
+      return;
+    }
+
+    navigator.mediaSession.playbackState = 'playing';
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'Nightlink Voice HQ',
+      artist: 'Communication Channel',
+      album: 'Active Session'
+    });
+
+    return () => {
+      navigator.mediaSession.playbackState = 'none';
+    };
+  }, [joinedVoiceRoomId]);
 
   // Effect: Voice signal channel setup
   useEffect(() => {
@@ -811,6 +849,10 @@ export function useVoiceRoom(
     setIsPushToTalk,
     isPushToTalkActive,
     setIsPushToTalkActive,
+    pushToTalkKey,
+    setPushToTalkKey,
+    isRecordingPTT,
+    setIsRecordingPTT,
     voiceConnectionStatus,
     setVoiceConnectionStatus,
     outputVolume,
@@ -827,8 +869,6 @@ export function useVoiceRoom(
     leaveVoiceRoom,
     createPeerConnection,
     handleVoiceToggle,
-    pushToTalkKey,
-    setPushToTalkKey,
     isScreenSharing,
     handleScreenShareToggle,
     remoteVideoStreams
