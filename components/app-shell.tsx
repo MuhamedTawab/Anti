@@ -64,7 +64,10 @@ function AppLayout() {
       <div className="flex h-screen items-center justify-center bg-[#0d0d0f] text-white">
         <div className="w-full max-w-md space-y-8 px-4">
           <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-[#ff3b5f] to-[#ff8a5b] bg-clip-text text-transparent">
+            <div className="flex justify-center mb-6">
+              <img src="/logo.jpg" alt="Nightlink" className="h-20 w-auto object-contain animate-in zoom-in-50 duration-700" />
+            </div>
+            <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic">
               Nightlink
             </h1>
             <p className="mt-2 text-sm text-[#9da0a7]">
@@ -156,7 +159,9 @@ function AppLayout() {
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-[#1e1f22]/95 px-4 py-2.5 shadow-2xl backdrop-blur-md border border-white/5 animate-in slide-in-from-bottom-8 duration-300">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="h-2 w-2 rounded-full bg-[#23a559] animate-pulse shadow-[0_0_8px_#23a559]" />
+                    <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center p-1">
+                      <img src="/logo.jpg" alt="Logo" className="w-full h-full object-contain rounded-full" />
+                    </div>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#9da0a7]">Voice Connected</span>
