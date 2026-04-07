@@ -298,21 +298,26 @@ export function NightlinkProvider({
     const hasCache = (data.messages[channelId] ?? []).length > 0;
     
     try {
-      const response = await fetch(`/api/messages?channelId=${channelId}`);
+      const authHeaders = getAuthHeaders();
+      const response = await fetch(`/api/channels/${channelId}/messages`, {
+        cache: "no-store",
+        headers: { ...(authHeaders ?? {}) }
+      });
+      
       if (response.ok) {
-        const messages = await response.json() as Message[];
+        const payload = await response.json() as { messages: Message[] };
         setData((current) => ({
           ...current,
           messages: {
             ...current.messages,
-            [channelId]: messages
+            [channelId]: payload.messages
           }
         }));
       }
     } catch(e) {
       console.error("Pulse: History sync failed", e);
     }
-  }, [data.messages, setData]);
+  }, [data.messages, setData, getAuthHeaders]);
 
   const handleTextChannelSelect = useCallback((id: string) => {
     setActiveTextChannelId(id);

@@ -137,10 +137,15 @@ export function ChannelList() {
                        )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-start min-w-0">
+                  <div className="flex flex-col items-start min-w-0 flex-1">
                     <span className="text-sm font-bold truncate w-full">{thread.friendName}</span>
                     <span className="text-[9px] font-medium opacity-40 uppercase tracking-tighter truncate w-full">Operation Active</span>
                   </div>
+                  {unreadCounts[thread.id] > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff3b5f] px-1 text-[10px] font-black text-white shadow-lg shadow-[#ff3b5f]/20">
+                      {unreadCounts[thread.id] > 99 ? "99+" : unreadCounts[thread.id]}
+                    </span>
+                  )}
                 </button>
               ))}
 
