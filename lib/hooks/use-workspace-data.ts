@@ -72,20 +72,46 @@ export function useWorkspaceData(
   getAuthHeaders: () => { Authorization: string } | null,
   setCurrentUser: React.Dispatch<React.SetStateAction<AuthIdentity | null>>
 ): WorkspaceDataResult {
-  const [data, setData] = useState(initialData);
-  const [activeServerId, setActiveServerId] = useState<string | null>(null);
-  const [activeTextChannelId, setActiveTextChannelId] = useState(
-    getInitialTextChannel(getInitialServer(initialData)).id
-  );
-  const [activeVoiceChannelId, setActiveVoiceChannelId] = useState(
-    getInitialServer(initialData).channels.find((channel) => channel.kind === "voice")?.id ?? ""
-  );
-  const [socialData, setSocialData] = useState<SocialPayload>({
-    friends: [],
-    incomingRequests: [],
-    outgoingRequests: [],
-    directThreads: []
+  // V15.1: Zero-Latency - Inline Hydration (True Pulse)
+  const [data, setData] = useState<BootstrapPayload>(() => {
+    if (typeof window === 'undefined') return initialData;
+    const cached = localStorage.getItem('nightlink_cache_v1');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { data: BootstrapPayload; social: SocialPayload };
+        // Initial state takes cached servers and cached messages
+        return { ...parsed.data, messages: parsed.data.messages || {} };
+      } catch (e) {
+        return initialData;
+      }
+    }
+    return initialData;
   });
+
+  const [activeServerId, setActiveServerId] = useState<string | null>(null);
+  const [activeTextChannelId, setActiveTextChannelId] = useState(() => {
+    const server = getInitialServer(data);
+    return getInitialTextChannel(server).id;
+  });
+  const [activeVoiceChannelId, setActiveVoiceChannelId] = useState(() => {
+    return getInitialServer(data).channels.find((channel) => channel.kind === "voice")?.id ?? "";
+  });
+
+  const [socialData, setSocialData] = useState<SocialPayload>(() => {
+    const defaultSocial = { friends: [], incomingRequests: [], outgoingRequests: [], directThreads: [] };
+    if (typeof window === 'undefined') return defaultSocial;
+    const cached = localStorage.getItem('nightlink_cache_v1');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { social: SocialPayload };
+        return parsed.social || defaultSocial;
+      } catch (e) {
+        return defaultSocial;
+      }
+    }
+    return defaultSocial;
+  });
+
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [profileName, setProfileName] = useState("");
   const [profileHandle, setProfileHandle] = useState("");
@@ -94,37 +120,23 @@ export function useWorkspaceData(
   const profileDraftDirtyRef = useRef(false);
   const lastProfileSyncRef = useRef<string | null>(null);
 
-  // V15: Zero-Latency - Local Hydration (Muscle Memory)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const cached = localStorage.getItem('nightlink_cache_v1');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached) as { data: BootstrapPayload; social: SocialPayload };
-        // Hydrate UI instantly before the first fetch
-        setData(prev => {
-          // Keep current messages but take cached servers/structure
-          return { ...parsed.data, messages: prev.messages };
-        });
-        setSocialData(parsed.social);
-      } catch (e) {
-        console.warn("Pulse: Muscle Memory corrupted, skipping hydration.");
-      }
-    }
-  }, [setSocialData]);
-
-  // V15: Persist state to local storage for next boot
+  // V15.1: Smart Persistence - Cache top 20 messages per channel
   useEffect(() => {
     if (typeof window === 'undefined' || !data.servers.length) return;
     
     const timer = setTimeout(() => {
+       // Sliced messages: Keep only last 20 for each channel to save space
+       const slicedMessages: Record<string, any[]> = {};
+       Object.entries(data.messages || {}).forEach(([id, msgs]) => {
+         slicedMessages[id] = (msgs || []).slice(-20);
+       });
+
        const snapshot = {
-         data: { ...data, messages: {} }, // Don't persist messages to save space/privacy
+         data: { ...data, messages: slicedMessages },
          social: socialData
        };
        localStorage.setItem('nightlink_cache_v1', JSON.stringify(snapshot));
-    }, 1000); // Debounce persistence
+    }, 2000); // 2s debounce for performance
 
     return () => clearTimeout(timer);
   }, [data, socialData]);

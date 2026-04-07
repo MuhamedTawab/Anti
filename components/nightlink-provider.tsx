@@ -449,7 +449,6 @@ export function NightlinkProvider({
       const nextMessage = payload?.message;
       if (!response.ok || !nextMessage) throw new Error(payload?.error ?? "Failed to send.");
       setData((cur) => ({ ...cur, messages: { ...cur.messages, [activeTargetId]: replaceMessage(cur.messages[activeTargetId] ?? [], optimisticId, nextMessage) } }));
-      await realtimeChannelRef.current?.send({ type: "broadcast", event: "message", payload: { message: nextMessage } });
       playUiSound("send");
     } catch (e: any) {
       setComposerValue(body);
