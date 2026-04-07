@@ -1,7 +1,7 @@
 /**
- * Nightlink Voice Persistence Worker
- * This worker maintains a high-precision background timer to prevent 
- * the signaling channel from being throttled by aggressive browser tab sleeping.
+ * Nightlink Voice Persistence Worker V6
+ * This worker maintains a high-precision background timer AND
+ * perform network "warming" to prevent the OS from sleeping the network card.
  */
 
 let timerId = null;
@@ -17,9 +17,12 @@ self.onmessage = function(e) {
     
     timerId = setInterval(() => {
       self.postMessage({ type: 'tick', timestamp: Date.now() });
+      
+      // Network Warming: Touch the server to keep the radio/connection active
+      fetch('/api/voice/session?pulse=1').catch(() => null);
     }, intervalMs);
     
-    console.log(`[VoiceWorker] Background timer started at ${intervalMs}ms`);
+    console.log(`[VoiceWorker] Unstoppable timer started at ${intervalMs}ms`);
   }
 
   if (type === 'stop') {
@@ -27,11 +30,10 @@ self.onmessage = function(e) {
       clearInterval(timerId);
       timerId = null;
     }
-    console.log('[VoiceWorker] Background timer stopped');
+    console.log('[VoiceWorker] Worker stopped');
   }
 
   if (type === 'ping') {
-    // Immediate tick request
     self.postMessage({ type: 'tick', timestamp: Date.now() });
   }
 };

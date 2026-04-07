@@ -62,7 +62,7 @@ export function useVoiceRoom(
   const signalRafRef = useRef<number | null>(null);
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const heartbeatNodesRef = useRef<{ osc: OscillatorNode; dest: MediaStreamAudioDestinationNode } | null>(null);
+  const heartbeatNodesRef = useRef<{ osc: AudioBufferSourceNode | OscillatorNode; dest: MediaStreamAudioDestinationNode } | null>(null);
   const voiceWorkerRef = useRef<Worker | null>(null);
   const wakeLockRef = useRef<any>(null);
 
@@ -420,33 +420,38 @@ export function useVoiceRoom(
             try { heartbeatNodesRef.current.osc.stop(); } catch {}
           }
 
-          // Create an oscillator that creates silent but active audio processing
-          const osc = ctx.createOscillator();
+          // V6: Using a Periodic White Noise generator instead of a Sine wave.
+          // White noise processing is more diverse and harder for OS power-savers to "de-prioritize".
+          const bufferSize = ctx.sampleRate;
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+          noise.loop = true;
+          
           const dest = ctx.createMediaStreamDestination();
           const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime); // Virtually silent
           
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(440, ctx.currentTime);
-          
-          gain.gain.setValueAtTime(0.0001, ctx.currentTime); // Almost silent but not zero
-          
-          osc.connect(gain);
+          noise.connect(gain);
           gain.connect(dest);
           
           const audio = new Audio();
           audio.srcObject = dest.stream;
-          audio.muted = false; // Unmuted to trick OS into treating us as a high-priority media player
-          audio.volume = 0.001; // Virtually silent to the user
+          audio.muted = false; // MUST be unmuted to trick OS into high-priority mode
+          audio.volume = 0.001; 
           
           silentAudioRef.current = audio;
-          heartbeatNodesRef.current = { osc, dest };
+          heartbeatNodesRef.current = { osc: noise as any, dest };
           
           void audio.play().then(() => {
-            osc.start();
-            console.log("[Voice] High-Priority Volumetric Heartbeat active. Preventing background suspension.");
-          }).catch(() => {
-            console.warn("[Voice] Heartbeat start blocked by browser. User interaction required.");
-          });
+            noise.start();
+            console.log("[Voice] Unstoppable V6 Heartbeat (White Noise) active.");
+          }).catch(() => null);
         }
 
         // Request Screen Wake Lock if available
@@ -633,6 +638,18 @@ export function useVoiceRoom(
         if (!next.userId || next.userId === currentUser.id) return;
 
         const peer = createPeerConnection(next.userId);
+        
+        // V6: Add ICE State monitoring to auto-restart on disconnect
+        peer.oniceconnectionstatechange = () => {
+          if (peer.iceConnectionState === "disconnected" || peer.iceConnectionState === "failed") {
+             console.log(`[Voice] ICE ${peer.iceConnectionState} for ${next.userId}. Attempting background restart.`);
+             void peer.createOffer({ iceRestart: true }).then(async (offer) => {
+                await peer.setLocalDescription(offer);
+                await sendVoiceSignal({ to: next.userId, from: currentUser.id, description: offer }, channel);
+             });
+          }
+        };
+
         const offer = await peer.createOffer();
         await peer.setLocalDescription(offer);
         await sendVoiceSignal(
@@ -651,6 +668,17 @@ export function useVoiceRoom(
         if (!signal.to || !signal.from || signal.to !== currentUser.id) return;
 
         const peer = createPeerConnection(signal.from);
+
+        // V6: Add ICE State monitoring to auto-restart on disconnect
+        peer.oniceconnectionstatechange = () => {
+          if (peer.iceConnectionState === "disconnected" || peer.iceConnectionState === "failed") {
+             console.log(`[Voice] ICE ${peer.iceConnectionState} for ${signal.from}. Attempting background restart.`);
+             void peer.createOffer({ iceRestart: true }).then(async (offer) => {
+                await peer.setLocalDescription(offer);
+                await sendVoiceSignal({ to: signal.from!, from: currentUser.id, description: offer }, channel);
+             });
+          }
+        };
 
         if (signal.description) {
           await peer.setRemoteDescription(new RTCSessionDescription(signal.description));
