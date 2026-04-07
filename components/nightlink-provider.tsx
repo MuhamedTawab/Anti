@@ -271,7 +271,7 @@ export function NightlinkProvider({
     const channel = supabase.channel('nightlink-global');
     
     channel.on('broadcast', { event: 'new-message' }, (payload) => {
-      const { channelId, authorId } = payload.payload as { channelId: string; authorId: string };
+      const { channelId, authorId, message } = payload.payload as { channelId: string; authorId: string; message: Message };
       if (authorId === currentUser.id) return;
 
       const isWindowHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
@@ -279,6 +279,17 @@ export function NightlinkProvider({
       
       if (isWindowHidden || isNotActiveChat) {
         playUiSound("receive");
+      }
+
+      // V15: Instant Hydration - Append message even if not active
+      if (message) {
+        setData(prev => ({
+          ...prev,
+          messages: {
+            ...prev.messages,
+            [channelId]: mergeMessage(prev.messages[channelId] || [], message)
+          }
+        }));
       }
 
       if (isNotActiveChat) {
@@ -412,12 +423,12 @@ export function NightlinkProvider({
       authorAvatarUrl: currentUser.avatarUrl ?? null,
       canModerate: true
     };
-    // V14: Broadcast to global pulse for notifications
+    // V15: Zero-Latency Logic - Broadcast full payload globally for instant hydration
     if (globalChannelRef.current) {
       void globalChannelRef.current.send({
         type: 'broadcast',
         event: 'new-message',
-        payload: { channelId: activeChatKey, authorId: currentUser.id }
+        payload: { channelId: activeTargetId, authorId: currentUser.id, message: optimisticMessage }
       });
     }
 

@@ -94,6 +94,41 @@ export function useWorkspaceData(
   const profileDraftDirtyRef = useRef(false);
   const lastProfileSyncRef = useRef<string | null>(null);
 
+  // V15: Zero-Latency - Local Hydration (Muscle Memory)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const cached = localStorage.getItem('nightlink_cache_v1');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { data: BootstrapPayload; social: SocialPayload };
+        // Hydrate UI instantly before the first fetch
+        setData(prev => {
+          // Keep current messages but take cached servers/structure
+          return { ...parsed.data, messages: prev.messages };
+        });
+        setSocialData(parsed.social);
+      } catch (e) {
+        console.warn("Pulse: Muscle Memory corrupted, skipping hydration.");
+      }
+    }
+  }, [setSocialData]);
+
+  // V15: Persist state to local storage for next boot
+  useEffect(() => {
+    if (typeof window === 'undefined' || !data.servers.length) return;
+    
+    const timer = setTimeout(() => {
+       const snapshot = {
+         data: { ...data, messages: {} }, // Don't persist messages to save space/privacy
+         social: socialData
+       };
+       localStorage.setItem('nightlink_cache_v1', JSON.stringify(snapshot));
+    }, 1000); // Debounce persistence
+
+    return () => clearTimeout(timer);
+  }, [data, socialData]);
+
   // Initial anonymous bootstrap load
   useEffect(() => {
     let cancelled = false;
