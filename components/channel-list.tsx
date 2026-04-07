@@ -11,7 +11,9 @@ import {
   MessageSquare,
   Settings,
   MoreVertical,
-  LogOut
+  LogOut,
+  Search,
+  Plus
 } from "lucide-react";
 
 import { useNightlink } from "@/lib/context";
@@ -71,10 +73,123 @@ export function ChannelList() {
     unreadCounts,
     setViewMode,
     setActiveThreadId,
-    currentUser
+    currentUser,
+    socialData,
+    activeThreadId,
+    handleOpenThread
   } = useNightlink();
 
-  if (!server) return null;
+  if (!server) {
+    return (
+      <section className="flex w-full flex-col bg-[#0d0d0f] border-r border-white/5 xl:w-[280px] z-10 animate-in slide-in-from-left-4 duration-300">
+        <div className="p-5 border-b border-white/5">
+           <button className="flex w-full items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-[11px] font-bold text-[#9da0a7] transition-all hover:bg-white/10">
+              <span>Find a conversation</span>
+              <div className="flex items-center gap-1.5 opacity-40">
+                <Search size={12} />
+                <span className="text-[10px] font-mono">⌘K</span>
+              </div>
+           </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-2 py-4 space-y-8 custom-scrollbar">
+           {/* Navigation */}
+           <div className="space-y-1">
+              <button 
+                onClick={() => {
+                  setViewMode("dm");
+                  setActiveThreadId(null);
+                }}
+                className={clsx(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group",
+                  !activeThreadId ? "bg-[#ff3b5f]/10 text-white" : "text-[#9da0a7] hover:bg-white/5 hover:text-white"
+                )}
+              >
+                 <Users size={18} className={!activeThreadId ? "text-[#ff3b5f]" : "opacity-50"} />
+                 <span className="text-sm font-bold uppercase tracking-tight">Friends</span>
+              </button>
+           </div>
+
+           {/* Direct Messages */}
+           <div className="space-y-1">
+              <div className="px-3 mb-2 flex items-center justify-between group">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-[#9da0a7] opacity-50">Direct Messages</h3>
+                <Plus size={14} className="text-[#9da0a7] opacity-0 group-hover:opacity-40 hover:opacity-100 cursor-pointer" />
+              </div>
+              
+              {socialData.directThreads.map((thread) => (
+                <button
+                  key={thread.id}
+                  onClick={() => handleOpenThread(thread.friendId)}
+                  className={clsx(
+                    "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
+                    activeThreadId === thread.id
+                      ? "bg-white/5 text-white"
+                      : "text-[#9da0a7] hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <div className="relative">
+                    <div className="h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden">
+                       {thread.friendAvatarUrl ? (
+                         <img src={thread.friendAvatarUrl} className="h-full w-full object-cover" />
+                       ) : (
+                         <span className="text-[10px] font-bold">{thread.friendName.slice(0, 1)}</span>
+                       )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start min-w-0">
+                    <span className="text-sm font-bold truncate w-full">{thread.friendName}</span>
+                    <span className="text-[9px] font-medium opacity-40 uppercase tracking-tighter truncate w-full">Operation Active</span>
+                  </div>
+                </button>
+              ))}
+
+              {socialData.directThreads.length === 0 && (
+                <div className="py-10 px-4 text-center opacity-20 italic">
+                  <p className="text-[10px] font-bold uppercase tracking-widest">No private signals detected</p>
+                </div>
+              )}
+           </div>
+        </div>
+
+        {/* User Footer */}
+        <div className="mt-auto p-4 border-t border-white/5 bg-[#080809]">
+          <div className="flex items-center gap-3 px-1">
+            <button 
+              onClick={() => setViewMode("profile")}
+              className="group relative h-9 w-9 rounded-xl bg-gradient-to-br from-[#ff3b5f] to-[#ff8a5b] p-0.5 transition-transform hover:scale-105 active:scale-95"
+            >
+              <div className="h-full w-full rounded-[10px] bg-[#0d0d0f] flex items-center justify-center overflow-hidden">
+                 {currentUser?.avatarUrl ? (
+                   <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-full w-full object-cover" />
+                 ) : (
+                   <span className="text-[10px] font-bold text-white uppercase">{currentUser?.name.slice(0, 2)}</span>
+                 )}
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-[#23a559] border-2 border-[#080809]" />
+            </button>
+            
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-xs font-bold text-white truncate">{currentUser?.name}</span>
+              <span className="text-[9px] font-bold text-[#9da0a7] uppercase tracking-tighter opacity-60 truncate">
+                {currentUser?.handle}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => setViewMode("profile")}
+                className="p-1.5 text-[#9da0a7] hover:text-white transition-colors"
+                title="Identity Settings"
+              >
+                <Settings size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const textChannels = server.channels.filter((c) => c.kind === "text");
   const voiceChannels = server.channels.filter((c) => c.kind === "voice");

@@ -25,8 +25,8 @@ export interface NightlinkContextType {
   setSocialData: React.Dispatch<React.SetStateAction<SocialPayload>>;
   
   // Navigation state
-  activeServerId: string;
-  setActiveServerId: (id: string) => void;
+  activeServerId: string | null;
+  setActiveServerId: (id: string | null) => void;
   activeTextChannelId: string;
   setActiveTextChannelId: (id: string) => void;
   activeVoiceChannelId: string;
@@ -100,6 +100,7 @@ export interface NightlinkContextType {
   handleDeleteMessage: (id: string) => Promise<void>;
   handleSendFriendRequest: () => Promise<void>;
   handleRespondFriendRequest: (requestId: string, action: "accept" | "decline") => Promise<void>;
+  handleHomeSelect: () => void;
   
   // Profile handlers
   profileName: string;

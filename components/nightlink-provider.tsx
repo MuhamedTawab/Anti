@@ -160,13 +160,16 @@ export function NightlinkProvider({
     isScreenSharing,
     handleScreenShareToggle,
     remoteVideoStreams
-  } = useVoiceRoom(supabase, currentUser, activeServerId, playUiSound, getAudioContext, setError, async (payload, channel) => {
+  } = useVoiceRoom(supabase, currentUser, activeServerId || "", playUiSound, getAudioContext, setError, async (payload, channel) => {
     await channel?.send({ type: "broadcast", event: "signal", payload });
   });
 
-  const { presenceMembers, setPresenceMembers } = usePresence(supabase, currentUser, activeServerId, joinedVoiceRoomId);
+  const { presenceMembers, setPresenceMembers } = usePresence(supabase, currentUser, activeServerId || "", joinedVoiceRoomId);
 
-  const activeServer = useMemo(() => data.servers.find((s) => s.id === activeServerId) ?? data.servers[0] ?? null, [activeServerId, data.servers]);
+  const activeServer = useMemo(() => {
+    if (!activeServerId) return null;
+    return data.servers.find((s) => s.id === activeServerId) ?? null;
+  }, [activeServerId, data.servers]);
   const activeTextChannel = useMemo(() => activeServer?.channels.find((c) => c.id === activeTextChannelId) ?? activeServer?.channels.find((c) => c.kind === "text") ?? activeServer?.channels[0] ?? null, [activeServer, activeTextChannelId]);
   const activeVoiceChannel = useMemo(() => activeServer?.channels.find((c) => c.id === activeVoiceChannelId) ?? activeServer?.channels.find((c) => c.kind === "voice") ?? null, [activeServer, activeVoiceChannelId]);
 
@@ -251,6 +254,12 @@ export function NightlinkProvider({
     if (joinedVoiceRoomId) await leaveVoiceRoom();
     setActiveVoiceChannelId(channelId);
     setError(null);
+  }
+
+  function handleHomeSelect() {
+    setActiveServerId(null);
+    setViewMode("dm");
+    setActiveThreadId(null);
   }
 
   function handleOpenThread(threadId: string) {
@@ -449,7 +458,7 @@ export function NightlinkProvider({
     activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts,
     error, setError, composerValue, setComposerValue, attachmentUrl, setAttachmentUrl, attachmentOpen, setAttachmentOpen, isSending, isPending, hasMore, isLoadingMore,
     joinedVoiceRoomId, isVoiceConnecting, isMuted, setIsMuted, isDeafened, setIsDeafened, isPushToTalk, setIsPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, setOutputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams,
-    handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest,
+    handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest,
     profileName, profileHandle, profileAvatarUrl, profileBio, handleProfileNameChange: setProfileName, handleProfileHandleChange: setProfileHandle, handleProfileAvatarUrlChange: setProfileAvatarUrl, handleProfileBioChange: setProfileBio, handleSaveProfile,
     createServerModalOpen, setCreateServerModalOpen, joinInviteModalOpen, setJoinInviteModalOpen, activeInviteCode, setActiveInviteCode,
     friendEmail, setFriendEmail,

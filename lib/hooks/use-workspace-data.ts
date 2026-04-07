@@ -43,8 +43,8 @@ function profileSnapshotKey(profile: AuthIdentity | null) {
 export interface WorkspaceDataResult {
   data: BootstrapPayload;
   setData: React.Dispatch<React.SetStateAction<BootstrapPayload>>;
-  activeServerId: string;
-  setActiveServerId: React.Dispatch<React.SetStateAction<string>>;
+  activeServerId: string | null;
+  setActiveServerId: React.Dispatch<React.SetStateAction<string | null>>;
   activeTextChannelId: string;
   setActiveTextChannelId: React.Dispatch<React.SetStateAction<string>>;
   activeVoiceChannelId: string;
@@ -73,7 +73,7 @@ export function useWorkspaceData(
   setCurrentUser: React.Dispatch<React.SetStateAction<AuthIdentity | null>>
 ): WorkspaceDataResult {
   const [data, setData] = useState(initialData);
-  const [activeServerId, setActiveServerId] = useState(getInitialServer(initialData).id);
+  const [activeServerId, setActiveServerId] = useState<string | null>(null);
   const [activeTextChannelId, setActiveTextChannelId] = useState(
     getInitialTextChannel(getInitialServer(initialData)).id
   );

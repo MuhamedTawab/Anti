@@ -62,6 +62,7 @@ export function useVoiceRoom(
   const signalRafRef = useRef<number | null>(null);
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatNodesRef = useRef<{ osc: OscillatorNode; dest: MediaStreamAudioDestinationNode } | null>(null);
 
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
@@ -115,6 +116,20 @@ export function useVoiceRoom(
 
     return baseConfig;
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === "suspended") {
+          void ctx.resume();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [getAudioContext]);
 
   function measureAnalyserLevel(analyser: AnalyserNode | null) {
     if (!analyser) {
@@ -191,8 +206,12 @@ export function useVoiceRoom(
 
     if (silentAudioRef.current) {
       silentAudioRef.current.pause();
-      silentAudioRef.current.src = "";
+      silentAudioRef.current.srcObject = null;
       silentAudioRef.current = null;
+    }
+    if (heartbeatNodesRef.current) {
+      try { heartbeatNodesRef.current.osc.stop(); } catch {}
+      heartbeatNodesRef.current = null;
     }
 
     if (pingIntervalRef.current) {
@@ -368,12 +387,37 @@ export function useVoiceRoom(
 
       // Start silent heartbeat to keep background tab active for audio
       if (typeof window !== "undefined") {
-        const audio = new Audio();
-        audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAP8A/wD/Lw==";
-        audio.loop = true;
-        audio.volume = 0.001; 
-        silentAudioRef.current = audio;
-        void audio.play().catch(() => null);
+        const ctx = getAudioContext();
+        if (ctx) {
+          // If we had a previous heartbeat, stop it
+          if (heartbeatNodesRef.current) {
+            try { heartbeatNodesRef.current.osc.stop(); } catch {}
+          }
+
+          // Create an oscillator that creates silent but active audio processing
+          const osc = ctx.createOscillator();
+          const dest = ctx.createMediaStreamDestination();
+          const gain = ctx.createGain();
+          
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime); // Almost silent but not zero
+          
+          osc.connect(gain);
+          gain.connect(dest);
+          
+          const audio = new Audio();
+          audio.srcObject = dest.stream;
+          audio.muted = true; // Muted at element level, but stream is "playing"
+          
+          silentAudioRef.current = audio;
+          heartbeatNodesRef.current = { osc, dest };
+          
+          void audio.play().then(() => {
+            osc.start();
+          }).catch(() => null);
+        }
 
         // Periodically ping signaling channel to keep websocket warm
         pingIntervalRef.current = setInterval(() => {
@@ -384,7 +428,7 @@ export function useVoiceRoom(
               payload: { userId: currentUser.id, timestamp: Date.now() }
             });
           }
-        }, 25000);
+        }, 15000); // Reduced to 15s for better background persistence
       }
     } catch {
       setError("Microphone access failed or voice could not start.");
