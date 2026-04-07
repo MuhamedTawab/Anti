@@ -1,215 +1,246 @@
 "use client";
 
 import { useState } from "react";
+import { 
+  KeyRound, 
+  LoaderCircle, 
+  LogOut, 
+  Mail, 
+  ShieldCheck, 
+  User, 
+  Camera, 
+  AtSign, 
+  Type, 
+  Check, 
+  Globe 
+} from "lucide-react";
+import clsx from "clsx";
 
-import { KeyRound, LoaderCircle, LogOut, Mail, ShieldCheck } from "lucide-react";
+import { useNightlink } from "@/lib/context";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-import type { AuthIdentity } from "@/lib/types";
+export function AuthPanel() {
+  const {
+    currentUser,
+    authLoading: loading,
+    authMessage: message,
+    setAuthMessage,
+    profileName,
+    profileHandle,
+    profileAvatarUrl,
+    profileBio,
+    handleProfileNameChange,
+    handleProfileHandleChange,
+    handleProfileAvatarUrlChange,
+    handleProfileBioChange,
+    handleSaveProfile,
+    getAuthHeaders // If needed for logout
+  } = useNightlink();
 
-interface AuthPanelProps {
-  currentUser: AuthIdentity | null;
-  profileName: string;
-  profileAvatarUrl: string;
-  loading: boolean;
-  message: string | null;
-  onProfileNameChange: (value: string) => void;
-  onProfileAvatarUrlChange: (value: string) => void;
-  onGoogleSignIn: () => void;
-  onSaveProfile: () => void;
-  onSignOut: () => void;
-}
-
-export function AuthPanel({
-  currentUser,
-  profileName,
-  profileAvatarUrl,
-  loading,
-  message,
-  onProfileNameChange,
-  onProfileAvatarUrlChange,
-  onGoogleSignIn,
-  onSaveProfile,
-  onSignOut
-}: AuthPanelProps) {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-  if (currentUser) {
+  const handleGoogleSignIn = async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/api/auth/callback"
+      }
+    });
+  };
+
+  const handleSignOut = async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
+
+  if (!currentUser) {
     return (
-      <>
-      <section className="flex flex-col gap-4 rounded-[28px] border border-white/10 bg-panel/90 px-6 py-5 shadow-panel xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <p className="mb-2 text-xs uppercase tracking-[0.35em] text-sea/80">Nightlink Access</p>
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-ember to-sea font-display text-sm font-bold text-ink">
-              {currentUser.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-full w-full rounded-2xl object-cover" />
-              ) : (
-                currentUser.name.slice(0, 2).toUpperCase()
-              )}
+      <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-[#1e1f22] to-[#111214] p-8 shadow-2xl animate-in zoom-in-95 duration-500">
+        <div className="space-y-6">
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="h-16 w-16 rounded-3xl bg-[#ff3b5f]/10 flex items-center justify-center text-[#ff3b5f] mb-2">
+              <ShieldCheck size={32} />
             </div>
-            <div>
-              <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">
-                {currentUser.name}
-              </p>
-              <p className="text-sm text-white/45">
-                {currentUser.email}
-              </p>
+            <h2 className="text-2xl font-black tracking-tight text-white uppercase">Identity Required</h2>
+            <p className="text-sm text-[#9da0a7] font-medium leading-relaxed">
+              To join the Nightlink network, you must authenticate through a verified provider.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="group relative flex w-full items-center justify-center gap-4 rounded-2xl bg-white py-4 text-sm font-black text-black transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+            >
+              <Globe size={20} className="text-[#4285F4]" />
+              <span>Connect with Google</span>
+              {loading && <LoaderCircle size={18} className="animate-spin ml-2" />}
+            </button>
+            
+            <button
+              disabled
+              className="flex w-full items-center justify-center gap-4 rounded-2xl bg-white/5 border border-white/5 py-4 text-sm font-bold text-[#9da0a7] opacity-40 cursor-not-allowed"
+            >
+              <Mail size={18} />
+              <span>Continue with Discord</span>
+            </button>
+          </div>
+
+          {message && (
+            <div className="rounded-xl bg-[#da373c]/10 p-3 text-center border border-[#da373c]/20 animate-in fade-in">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#da373c]">{message}</p>
             </div>
+          )}
+
+          <div className="pt-4 border-t border-white/5">
+             <p className="text-[10px] font-bold text-[#9da0a7] uppercase tracking-[0.2em] text-center opacity-40">
+                End-to-End Encrypted Identity Protocol v2.4
+             </p>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="flex flex-col gap-3 xl:items-end">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-2xl border border-sea/20 bg-sea/10 px-4 py-3 text-sm text-sea">
-              <span className="inline-flex items-center gap-2">
-                <ShieldCheck size={16} />
-                Live identity enabled
-              </span>
+  return (
+    <div className="space-y-4">
+      <section className="flex flex-col gap-6 rounded-3xl border border-white/5 bg-[#1e1f22] p-8 shadow-2xl animate-in slide-in-from-top-4 duration-500">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="relative group">
+               <div className="h-20 w-20 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#ff3b5f] to-[#ff8a5b] p-0.5 shadow-xl transition-transform group-hover:scale-105">
+                 <div className="h-full w-full rounded-[22px] bg-[#1e1f22] flex items-center justify-center overflow-hidden">
+                   {currentUser.avatarUrl ? (
+                     <img src={currentUser.avatarUrl} alt={currentUser.name} className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                   ) : (
+                     <span className="text-2xl font-black text-white/20">{currentUser.name.slice(0, 1).toUpperCase()}</span>
+                   )}
+                 </div>
+               </div>
+               <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-[#23a559] border-4 border-[#1e1f22]" />
             </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight leading-none">{currentUser.name}</h2>
+                <div className="px-1.5 py-0.5 rounded bg-[#ff3b5f]/10 text-[#ff3b5f] text-[9px] font-black uppercase tracking-widest border border-[#ff3b5f]/20">Pro</div>
+              </div>
+              <p className="text-sm font-bold text-[#9da0a7] tracking-tight">{currentUser.handle}</p>
+              <div className="mt-2 flex items-center gap-3 text-[10px] font-bold text-[#23a559] uppercase tracking-widest opacity-80">
+                 <div className="h-1.5 w-1.5 rounded-full bg-[#23a559] animate-pulse" />
+                 Encrypted Tunnel Online
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setIsEditingProfile((prev) => !prev)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-sm text-white/80 transition hover:bg-blade hover:text-white"
+              className={clsx(
+                "flex h-11 items-center gap-2 px-5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                isEditingProfile ? "bg-[#ff3b5f] text-white shadow-lg shadow-[#ff3b5f]/20" : "bg-white/5 text-[#9da0a7] hover:bg-white/10 hover:text-white"
+              )}
             >
               <KeyRound size={16} />
-              {isEditingProfile ? "Close Profile" : "Edit Profile"}
+              {isEditingProfile ? "Done" : "Identity Settings"}
             </button>
             <button
-              onClick={onSignOut}
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-steel px-4 py-3 text-sm text-white/80 transition hover:bg-blade hover:text-white"
+              onClick={handleSignOut}
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-[#9da0a7] transition-all hover:bg-[#da373c]/10 hover:text-[#da373c] hover:border-[#da373c]/30 border border-transparent"
             >
-              <LogOut size={16} />
-              Sign Out
+              <LogOut size={18} />
             </button>
           </div>
         </div>
       </section>
 
       {isEditingProfile && (
-        <section className="flex flex-col gap-4 rounded-[28px] border border-white/10 bg-panel/90 px-6 py-5 shadow-panel">
-          <div className="rounded-[28px] border border-white/10 bg-black/20 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-ember to-sea font-display text-sm font-bold text-ink">
-                  {profileAvatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={profileAvatarUrl} alt={profileName || currentUser.name} className="h-full w-full object-cover" />
-                  ) : (
-                    (profileName || currentUser.name).slice(0, 2).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.28em] text-white/35">Profile</p>
-                  <p className="text-sm text-white/60">Name and avatar</p>
-                </div>
+        <section className="rounded-3xl border border-white/5 bg-[#1e1f22] p-8 shadow-2xl animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3 mb-8">
+             <div className="p-2 rounded-xl bg-[#ff3b5f]/10 text-[#ff3b5f]">
+                <User size={20} />
+             </div>
+             <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-widest">Metadata Profile</h3>
+                <p className="text-[10px] font-bold text-[#9da0a7] uppercase tracking-widest opacity-50">Global identity settings</p>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#9da0a7]">
+                  <Type size={12} /> Display Name
+                </label>
+                <input
+                  value={profileName}
+                  onChange={(e) => handleProfileNameChange(e.target.value)}
+                  className="w-full rounded-2xl bg-black/40 px-5 py-3.5 text-sm font-bold text-white transition-all focus:bg-black/60 focus:outline-none focus:ring-2 focus:ring-[#ff3b5f]/30"
+                />
               </div>
-              <button
-                onClick={() => {
-                  onSaveProfile();
-                  setIsEditingProfile(false);
-                }}
-                disabled={loading}
-                className="rounded-2xl bg-ember px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
-              >
-                Save
-              </button>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#9da0a7]">
+                  <AtSign size={12} /> Global Handle
+                </label>
+                <input
+                  value={profileHandle}
+                  onChange={(e) => handleProfileHandleChange(e.target.value)}
+                  className="w-full rounded-2xl bg-black/40 px-5 py-3.5 text-sm font-bold text-white transition-all focus:bg-black/60 focus:outline-none focus:ring-2 focus:ring-[#ff3b5f]/30"
+                />
+              </div>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <input
-                value={profileName}
-                onChange={(event) => onProfileNameChange(event.target.value)}
-                placeholder="Display name"
-                className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-              />
-              <input
-                value={profileAvatarUrl}
-                onChange={(event) => onProfileAvatarUrlChange(event.target.value)}
-                placeholder="Avatar image URL"
-                className="rounded-2xl border border-white/10 bg-steel px-4 py-3 text-white outline-none placeholder:text-white/35"
-              />
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#9da0a7]">
+                  <Camera size={12} /> Avatar Metadata (URL)
+                </label>
+                <input
+                  value={profileAvatarUrl}
+                  onChange={(e) => handleProfileAvatarUrlChange(e.target.value)}
+                  className="w-full rounded-2xl bg-black/40 px-5 py-3.5 text-sm font-bold text-white transition-all focus:bg-black/60 focus:outline-none focus:ring-2 focus:ring-[#ff3b5f]/30"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#9da0a7]">
+                  <KeyRound size={12} /> Identity Summary (Bio)
+                </label>
+                <textarea
+                  value={profileBio}
+                  onChange={(e) => handleProfileBioChange(e.target.value)}
+                  className="w-full h-24 rounded-2xl bg-black/40 px-5 py-3.5 text-sm font-medium text-white transition-all focus:bg-black/60 focus:outline-none focus:ring-2 focus:ring-[#ff3b5f]/30 resize-none"
+                />
+              </div>
             </div>
+          </div>
+
+          <div className="mt-8 flex items-center justify-between pt-6 border-t border-white/5">
+            <div className="flex items-center gap-3">
+               {loading ? (
+                 <LoaderCircle size={20} className="animate-spin text-[#ff3b5f]" />
+               ) : (
+                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/5 text-[#9da0a7]">
+                    <ShieldCheck size={12} />
+                 </div>
+               )}
+               <p className="text-[10px] font-bold text-[#9da0a7] uppercase tracking-widest opacity-50">
+                  {message || "Protocol version matches server"}
+               </p>
+            </div>
+            <button
+              onClick={handleSaveProfile}
+              disabled={loading}
+              className="group flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#ff3b5f] to-[#ff8a5b] px-10 py-4 font-black uppercase text-xs tracking-widest text-white shadow-xl shadow-[#ff3b5f]/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30"
+            >
+              <Check size={16} /> Update Identity
+            </button>
           </div>
         </section>
       )}
-      </>
-    );
-  }
-
-  return (
-    <main className="min-h-screen px-4 py-4 text-white lg:px-6 lg:py-6">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1480px] gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-        <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-gradient-to-br from-[#14060b] via-[#090b12] to-[#06141a] p-8 shadow-panel lg:p-12">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,59,95,0.20),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(123,246,255,0.12),transparent_24%)]" />
-          <div className="relative flex h-full flex-col justify-between">
-            <div>
-              <p className="mb-4 text-xs uppercase tracking-[0.45em] text-ember/80">Nightlink</p>
-              <h1 className="max-w-xl font-display text-5xl uppercase leading-[0.92] tracking-[0.08em] text-white lg:text-7xl">
-                Enter The Squad Link.
-              </h1>
-              <p className="mt-5 max-w-xl text-sm leading-7 text-white/55 lg:text-base">
-                Private chat and voice for crews, guilds, and late-night teams. Sign in before you
-                touch the board.
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <p className="mb-2 text-xs uppercase tracking-[0.28em] text-white/35">Access</p>
-                <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">Locked</p>
-                <p className="mt-2 text-sm leading-6 text-white/55">
-                  No channels, messages, or rooms are shown until you sign in.
-                </p>
-              </div>
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <p className="mb-2 text-xs uppercase tracking-[0.28em] text-white/35">Identity</p>
-                <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">Real</p>
-                <p className="mt-2 text-sm leading-6 text-white/55">
-                  Messages carry your actual account handle instead of a fake local user.
-                </p>
-              </div>
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
-                <p className="mb-2 text-xs uppercase tracking-[0.28em] text-white/35">Stack</p>
-                <p className="font-display text-2xl uppercase tracking-[0.08em] text-white">Free</p>
-                <p className="mt-2 text-sm leading-6 text-white/55">
-                  Running on Vercel plus Supabase so you can keep building without paying yet.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="flex items-center">
-          <div className="w-full rounded-[36px] border border-white/10 bg-panel/95 p-7 shadow-panel lg:p-9">
-
-            <div className="mb-6">
-              <p className="mb-2 text-xs uppercase tracking-[0.35em] text-ember/80">Nightlink Access</p>
-              <h2 className="font-display text-3xl uppercase tracking-[0.08em] text-white">
-                Sign In
-              </h2>
-              <p className="mt-3 max-w-md text-sm leading-6 text-white/50">
-                Use your Gmail account to unlock Nightlink securely.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={onGoogleSignIn}
-                disabled={loading}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-ember px-5 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65"
-              >
-                 {loading ? <LoaderCircle size={16} className="animate-spin" /> : <Mail size={16} />}
-                Continue With Google
-              </button>
-            </div>
-
-            {message ? (
-              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-                {message}
-              </div>
-            ) : null}
-          </div>
-        </section>
-      </div>
-    </main>
+    </div>
   );
 }

@@ -1,25 +1,24 @@
+"use client";
+
 import clsx from "clsx";
 import { Plus, Ticket } from "lucide-react";
 
-import type { Server } from "@/lib/types";
+import { useNightlink } from "@/lib/context";
 
-export function ServerRail({
-  items,
-  activeId,
-  onSelect,
-  onCreate,
-  onJoin,
-  unreadCounts = {}
-}: {
-  items: Server[];
-  activeId: string;
-  unreadCounts?: Record<string, number>;
-  onSelect: (serverId: string) => void;
-  onCreate: () => void;
-  onJoin: () => void;
-}) {
+export function ServerRail() {
+  const {
+    data,
+    activeServerId: activeId,
+    handleServerSelect: onSelect,
+    setCreateServerModalOpen,
+    setJoinInviteModalOpen,
+    unreadCounts = {}
+  } = useNightlink();
+
+  const items = data.servers;
+
   return (
-    <aside className="flex w-full flex-row items-center gap-3 overflow-x-auto rounded-[28px] border border-white/10 bg-panel/95 px-3 py-4 shadow-panel backdrop-blur xl:w-20 xl:flex-col xl:overflow-visible xl:px-3 xl:py-5">
+    <aside className="flex w-full flex-row items-center gap-3 overflow-x-auto bg-[#080809] px-3 py-4 xl:w-20 xl:flex-col xl:overflow-visible xl:px-3 xl:py-5 border-r border-white/5 relative z-20">
       {items.map((server) => {
         const isActive = server.id === activeId;
         const serverUnread = server.channels.reduce(
@@ -28,41 +27,56 @@ export function ServerRail({
         );
 
         return (
-          <button
-            key={server.id}
-            onClick={() => onSelect(server.id)}
-            className={clsx(
-              "relative flex h-14 w-14 items-center justify-center rounded-2xl border text-sm font-bold transition",
-              isActive
-                ? `border-ember/40 bg-gradient-to-br ${server.accent} text-ink`
-                : "border-white/10 bg-steel text-white/80 hover:border-white/20 hover:bg-blade"
-            )}
-          >
-            {isActive ? (
-              <span className="absolute -left-[18px] h-7 w-1 rounded-full bg-ember" />
-            ) : null}
-            {server.initials}
-            {!isActive && serverUnread > 0 ? (
-              <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-ember text-[10px] font-bold text-white">
-                {serverUnread > 99 ? "99+" : serverUnread}
-              </span>
-            ) : null}
-          </button>
+          <div key={server.id} className="relative group">
+            <button
+              onClick={() => onSelect(server.id)}
+              className={clsx(
+                "relative flex h-12 w-12 items-center justify-center rounded-2xl font-bold transition-all duration-300 transform",
+                isActive
+                  ? `bg-gradient-to-br ${server.accent} text-white shadow-lg shadow-[#ff3b5f]/20 scale-100 rounded-xl`
+                  : "bg-[#1e1f22] text-[#9da0a7] hover:bg-[#ff3b5f] hover:text-white hover:rounded-xl scale-95 hover:scale-100"
+              )}
+            >
+              <span className="text-xs uppercase tracking-tighter">{server.initials}</span>
+              
+              {isActive && (
+                <div className="absolute -left-3 h-8 w-1 rounded-r-full bg-white animate-in slide-in-from-left-2 duration-300" />
+              )}
+
+              {!isActive && serverUnread > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#da373c] text-[9px] font-black text-white border-2 border-[#080809] px-1">
+                  {serverUnread > 99 ? "99+" : serverUnread}
+                </span>
+              )}
+
+              {/* Tooltip */}
+              <div className="absolute left-16 top-1/2 -translate-y-1/2 z-[100] scale-0 group-hover:scale-100 transition-all origin-left bg-black text-white text-[10px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap shadow-2xl pointer-events-none border border-white/10 uppercase tracking-widest">
+                 {server.name}
+              </div>
+            </button>
+          </div>
         );
       })}
 
-      <button
-        onClick={onCreate}
-        className="xl:mt-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-dashed border-white/15 bg-steel text-white/60 transition hover:border-ember/30 hover:bg-blade hover:text-white"
-      >
-        <Plus size={18} />
-      </button>
-      <button
-        onClick={onJoin}
-        className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-steel text-white/60 transition hover:border-sea/30 hover:bg-blade hover:text-sea"
-      >
-        <Ticket size={18} />
-      </button>
+      <div className="xl:mt-auto flex flex-col gap-3">
+        <div className="h-px w-8 bg-white/10 mx-auto opacity-40 xl:mb-2" />
+        
+        <button
+          onClick={() => setCreateServerModalOpen(true)}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1e1f22] text-[#23a559] transition-all hover:bg-[#23a559] hover:text-white hover:rounded-xl group"
+          title="Create Server"
+        >
+          <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+        
+        <button
+          onClick={() => setJoinInviteModalOpen(true)}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1e1f22] text-[#ff3b5f] transition-all hover:bg-[#ff3b5f] hover:text-white hover:rounded-xl group"
+          title="Join Server"
+        >
+          <Ticket size={18} className="group-hover:scale-110 transition-transform duration-300" />
+        </button>
+      </div>
     </aside>
   );
 }

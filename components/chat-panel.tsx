@@ -1,46 +1,55 @@
-import { useEffect, useRef, useState } from "react";
-import { Bell, Copy, ImageIcon, Link2, LoaderCircle, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+"use client";
 
+import { useEffect, useRef, useState } from "react";
+import { 
+  Bell, 
+  Copy, 
+  ImageIcon, 
+  Link2, 
+  LoaderCircle, 
+  Paperclip, 
+  Search, 
+  SendHorizontal, 
+  Trash2, 
+  X,
+  MoreVertical,
+  ShieldAlert,
+  UserMinus
+} from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import clsx from "clsx";
+
+import { useNightlink } from "@/lib/context";
 import type { Message } from "@/lib/types";
 
 export function ChatPanel({
-  channelName,
-  channelPrefix,
-  items,
-  composerValue,
-  attachmentUrl,
-  attachmentOpen,
-  pending,
-  canSend,
-  typingMembers,
-  onComposerChange,
-  onAttachmentChange,
-  onToggleAttachment,
-  onSend,
-  onDeleteMessage,
-  onLoadMore,
-  hasMore,
-  isLoadingMore
+  title,
+  isOwner,
+  onModerateMember
 }: {
-  channelName: string;
-  channelPrefix: "#" | "@";
-  items: Message[];
-  composerValue: string;
-  attachmentUrl: string;
-  attachmentOpen: boolean;
-  pending: boolean;
-  canSend: boolean;
-  typingMembers: string[];
-  onComposerChange: (value: string) => void;
-  onAttachmentChange: (value: string) => void;
-  onToggleAttachment: () => void;
-  onSend: () => void;
-  onDeleteMessage: (messageId: string) => void;
-  onLoadMore?: () => void;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
+  title: string;
+  isOwner?: boolean;
+  onModerateMember?: (targetId: string, action: "kick" | "ban") => Promise<void>;
 }) {
+  const {
+    displayedMessages: items,
+    composerValue,
+    handleComposerChange: onComposerChange,
+    handleSendMessage: onSend,
+    handleDeleteMessage: onDeleteMessage,
+    handleLoadMore: onLoadMore,
+    hasMore,
+    isLoadingMore,
+    isSending: pending,
+    error,
+    setError,
+    attachmentUrl,
+    setAttachmentUrl: onAttachmentChange,
+    attachmentOpen,
+    setAttachmentOpen: onToggleAttachment,
+    activeTypingMembers: typingMembers
+  } = useNightlink();
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(items.length);
   const prevScrollHeightRef = useRef(0);
@@ -54,13 +63,11 @@ export function ChatPanel({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Reset so the same file can be re-uploaded
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     setUploadError(null);
     setIsUploading(true);
-    // Show the banner immediately while uploading
-    if (!attachmentOpen) onToggleAttachment();
+    if (!attachmentOpen) onToggleAttachment(true);
 
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
@@ -72,257 +79,340 @@ export function ChatPanel({
     const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
     const filePath = `uploads/${fileName}`;
 
-    const { data, error } = await supabase.storage.from("attachments").upload(filePath, file);
+    const { data, error: uploadErr } = await supabase.storage.from("attachments").upload(filePath, file);
 
     setIsUploading(false);
-    if (!error && data) {
+    if (!uploadErr && data) {
       const { data: publicUrlData } = supabase.storage.from("attachments").getPublicUrl(data.path);
       onAttachmentChange(publicUrlData.publicUrl);
     } else {
-      console.error("Upload error:", error);
-      setUploadError(error?.message ?? "Upload failed. Check storage bucket permissions.");
+      console.error("Upload error:", uploadErr);
+      setUploadError(uploadErr?.message ?? "Upload failed. Check storage bucket permissions.");
     }
   };
 
-  // Preserve scroll position when older messages are prepended
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
     if (items.length > prevLengthRef.current) {
       const heightDiff = container.scrollHeight - prevScrollHeightRef.current;
       if (heightDiff > 0 && container.scrollTop < 100) {
-        // We just loaded older messages at the top — maintain position
         container.scrollTop = heightDiff;
       }
     }
     prevLengthRef.current = items.length;
     prevScrollHeightRef.current = container.scrollHeight;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
 
-  // Only auto-scroll to bottom when a new message arrives AND user is already near the bottom
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    if (distanceFromBottom < 200) {
+    if (container.scrollTop > container.scrollHeight - container.clientHeight - 200) {
       container.scrollTop = container.scrollHeight;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
 
-  // Scroll to bottom when switching channels
   useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-    container.scrollTop = container.scrollHeight;
-    prevLengthRef.current = 0;
-    prevScrollHeightRef.current = 0;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelName]);
+    if (!onLoadMore || !hasMore || isLoadingMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        onLoadMore();
+      }
+    }, { threshold: 0.1 });
 
-  // IntersectionObserver — fires onLoadMore when the top sentinel enters the viewport
-  useEffect(() => {
-    if (!onLoadMore || !hasMore) return;
     const sentinel = topSentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          prevScrollHeightRef.current = scrollRef.current?.scrollHeight ?? 0;
-          onLoadMore();
-        }
-      },
-      { root: scrollRef.current, threshold: 0.1 }
-    );
-    observer.observe(sentinel);
+    if (sentinel) observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [onLoadMore, hasMore]);
+  }, [onLoadMore, hasMore, isLoadingMore, items]);
 
   return (
-    <section className="flex h-[75vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[85vh]">
-      <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-        <div>
-          <p className="font-display text-2xl uppercase tracking-[0.08em]">
-            {channelPrefix}
-            {channelName}
-          </p>
-          <p className="text-sm text-white/42">Realtime drops, callouts, and squad planning.</p>
+    <div className="flex flex-1 flex-col overflow-hidden relative">
+      {/* Header */}
+      <header className="flex h-14 items-center justify-between border-b border-white/5 bg-[#111214]/80 px-4 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <span className="text-xl font-semibold text-[#9da0a7]">#</span>
+          <h2 className="text-sm font-bold text-white">{title}</h2>
         </div>
-        <div className="flex items-center gap-3 text-white/65">
-          <button className="rounded-2xl border border-white/10 bg-steel p-3">
-            <Search size={17} />
-          </button>
-          <button className="rounded-2xl border border-white/10 bg-steel p-3">
-            <Bell size={17} />
-          </button>
+        <div className="flex items-center gap-4 text-[#9da0a7]">
+          <Bell size={20} className="cursor-pointer hover:text-white transition-colors" />
+          <div className="relative">
+            <Search size={20} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-50" />
+            <input
+              type="text"
+              placeholder="Search"
+              className="h-8 w-36 rounded-lg bg-black/40 pl-9 pr-3 text-xs transition-all focus:w-64 focus:bg-black/60 focus:outline-none focus:ring-1 focus:ring-[#ff3b5f]/50"
+            />
+          </div>
         </div>
       </header>
 
-      <div ref={scrollRef} className="chat-scroll flex-1 min-h-0 space-y-5 overflow-y-auto px-6 py-6">
-        {/* Top sentinel — triggers older message load when scrolled into view */}
-        <div ref={topSentinelRef} className="h-1 w-full" />
-        {isLoadingMore && (
-          <div className="flex items-center justify-center gap-2 pb-2 text-sm text-white/40">
-            <LoaderCircle size={14} className="animate-spin" /> Loading older messages...
+      {/* Messages */}
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-6 space-y-1 custom-scrollbar scroll-smooth"
+      >
+        <div ref={topSentinelRef} className="h-4 w-full flex items-center justify-center opacity-0">
+          {isLoadingMore && <LoaderCircle className="animate-spin text-[#ff3b5f]" size={20} />}
+        </div>
+
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-[#9da0a7]">
+             <div className="p-8 rounded-full bg-white/5 mb-4">
+                <SendHorizontal size={48} className="opacity-20 translate-x-1" />
+             </div>
+             <p className="font-medium text-lg text-white/50">Start of a new conversation</p>
+             <p className="text-sm opacity-60">Send a message to get things started.</p>
           </div>
-        )}
-        {!isLoadingMore && hasMore === false && items.length > 0 && (
-          <div className="pb-3 text-center text-xs uppercase tracking-[0.25em] text-white/20">
-            Beginning of channel
-          </div>
-        )}
-        {items.map((message) => (
-          <article
-            key={message.id}
-            className={`group relative flex gap-4 rounded-[26px] border border-transparent p-4 transition-colors hover:border-white/8 hover:bg-black/20 ${
-              message.optimistic ? "opacity-70" : ""
-            }`}
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-ember to-sea font-display text-sm font-bold text-ink">
-              {message.authorAvatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={message.authorAvatarUrl} alt={message.author} className="h-full w-full object-cover" />
-              ) : (
-                message.author.slice(0, 2).toUpperCase()
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex items-center gap-3">
-                <span className="font-semibold">{message.author}</span>
-                <span className="text-sm text-white/32">{message.handle}</span>
-                <span className="text-sm text-white/32">{message.timestamp}</span>
-                {message.optimistic ? (
-                  <span className="text-xs uppercase tracking-[0.18em] text-ember/90">sending</span>
-                ) : null}
-              </div>
-              <p className="max-w-3xl text-[15px] leading-7 text-white/74">{message.body}</p>
-              {message.attachments?.length ? (
-                <div className="mt-3 space-y-3">
-                  {message.attachments.map((attachment) =>
-                    attachment.kind === "image" ? (
-                      <a key={attachment.id} href={attachment.url} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={attachment.url}
-                          alt={attachment.name}
-                          className="max-h-72 rounded-2xl border border-white/10 object-cover"
-                        />
-                      </a>
-                    ) : (
-                      <a
-                        key={attachment.id}
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-sea transition hover:brightness-110"
-                      >
-                        <Link2 size={14} />
-                        {attachment.name}
-                      </a>
-                    )
-                  )}
-                </div>
-              ) : null}
-            </div>
-            {/* Hover action buttons — appear on the right */}
-            <div className="absolute right-4 top-3 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-              <button
-                onClick={() => navigator.clipboard.writeText(message.body)}
-                className="rounded-xl border border-white/10 bg-panel/90 p-2 text-white/40 backdrop-blur transition hover:border-sea/40 hover:text-sea"
-                title="Copy message"
+        ) : (
+          items.map((message, i) => {
+            const isOptimistic = message.optimistic;
+            const isConsecutive = i > 0 && items[i - 1].author === message.author;
+
+            return (
+              <div
+                key={message.id}
+                className={clsx(
+                  "group relative -mx-4 px-4 py-0.5 transition-colors hover:bg-white/[0.02]",
+                  isOptimistic && "opacity-60"
+                )}
               >
-                <Copy size={13} />
-              </button>
-              {message.canModerate ? (
-                <button
-                  onClick={() => onDeleteMessage(message.id)}
-                  className="rounded-xl border border-white/10 bg-panel/90 p-2 text-white/40 backdrop-blur transition hover:border-ember/40 hover:text-ember"
-                  title="Delete message"
-                >
-                  <Trash2 size={13} />
-                </button>
-              ) : null}
-            </div>
-          </article>
-        ))}
+                {!isConsecutive ? (
+                  <div className="mt-4 flex gap-4">
+                    <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-[#2e3035] to-[#1e1f22]">
+                       {message.authorAvatarUrl ? (
+                         <img src={message.authorAvatarUrl} alt={message.author} className="h-full w-full object-cover" />
+                       ) : (
+                         <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white/40">
+                           {message.author.charAt(0)}
+                         </div>
+                       )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#f2f3f5] hover:underline cursor-pointer">{message.author}</span>
+                        <span className="text-[10px] font-medium text-[#9da0a7]">
+                          {message.timestamp}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-[#dbdee1] break-words">
+                        {message.body}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex pl-14">
+                    <p className="text-sm leading-relaxed text-[#dbdee1] break-words flex-1">
+                      {message.body}
+                    </p>
+                  </div>
+                )}
+
+                {/* Attachments */}
+                {(message.attachments ?? []).length > 0 && (
+                  <div className={clsx("mt-2 flex flex-wrap gap-2", !isConsecutive ? "pl-14" : "pl-14")}>
+                    {message.attachments?.map((attachment) => (
+                      <div key={attachment.id} className="group/att relative overflow-hidden rounded-xl border border-white/5 bg-black/20 transition-all hover:border-white/10 hover:shadow-xl">
+                        {attachment.kind === "image" ? (
+                          <div className="max-w-sm sm:max-w-md">
+                            <img
+                              src={attachment.url}
+                              alt={attachment.name}
+                              className="block h-auto max-h-[300px] w-auto rounded-lg transition-transform duration-300 group-hover/att:scale-[1.01]"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover/att:opacity-100 flex items-end p-3">
+                               <a href={attachment.url} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-white uppercase tracking-widest hover:underline backdrop-blur-sm bg-white/10 px-2 py-1 rounded">View Fullsize</a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-3 p-3 transition-colors hover:bg-white/5">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#ff3b5f]/10 text-[#ff3b5f]">
+                              <Link2 size={20} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-white">{attachment.name}</span>
+                              <a href={attachment.url} target="_blank" rel="noreferrer" className="text-[10px] text-[#9da0a7] hover:underline">
+                                {new URL(attachment.url).hostname}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Hover Actions */}
+                <div className="absolute right-4 top-2 hidden group-hover:flex items-center gap-1 rounded-lg border border-white/5 bg-[#1e1f22] p-1 shadow-xl z-10">
+                   {isOwner && (
+                     <>
+                      <button 
+                        onClick={() => onModerateMember?.(message.authorId!, 'kick')}
+                        className="p-1.5 text-[#9da0a7] hover:text-[#ff3b5f] transition-colors rounded hover:bg-white/5" 
+                        title="Kick Member"
+                      >
+                        <UserMinus size={14} />
+                      </button>
+                      <button 
+                        onClick={() => onModerateMember?.(message.authorId!, 'ban')}
+                        className="p-1.5 text-[#9da0a7] hover:text-[#ff3b5f] transition-colors rounded hover:bg-white/5" 
+                        title="Ban Member"
+                      >
+                        <ShieldAlert size={14} />
+                      </button>
+                     </>
+                   )}
+                  <button className="p-1.5 text-[#9da0a7] hover:text-white transition-colors rounded hover:bg-white/5" title="Copy Message">
+                    <Copy size={14} />
+                  </button>
+                  <button 
+                    onClick={() => onDeleteMessage(message.id)}
+                    className="p-1.5 text-[#9da0a7] hover:text-[#da373c] transition-colors rounded hover:bg-white/5" 
+                    title="Delete Message"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <button className="p-1.5 text-[#9da0a7] hover:text-white transition-colors rounded hover:bg-white/5">
+                    <MoreVertical size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
-      {typingMembers.length ? (
-        <div className="px-6 pb-3 text-sm text-sea">
-          {typingMembers.join(", ")} {typingMembers.length === 1 ? "is" : "are"} typing...
-        </div>
-      ) : null}
-
-      <div className="border-t border-white/10 p-5">
-        {(attachmentOpen || attachmentUrl || isUploading) ? (
-          <div className="mb-3 flex items-center gap-3 rounded-[24px] border border-white/10 bg-black/20 px-4 py-3">
-            <ImageIcon size={16} className={uploadError ? "text-ember" : "text-sea"} />
-            <div className="flex-1 truncate text-sm">
-              {isUploading ? (
-                <span className="flex items-center gap-2 text-sea">
-                  <LoaderCircle size={14} className="animate-spin" /> Uploading image...
-                </span>
-              ) : uploadError ? (
-                <span className="text-ember text-xs">{uploadError}</span>
-              ) : attachmentUrl ? (
-                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="text-sea underline hover:text-white transition">
-                  Attached Image Ready
-                </a>
-              ) : (
-                <span className="text-white/45">Ready to upload...</span>
-              )}
-            </div>
-            {!isUploading && (
-              <button
-                onClick={() => {
-                  onAttachmentChange("");
-                  setUploadError(null);
-                  if (attachmentOpen) onToggleAttachment();
-                }}
-                className="rounded-xl border border-white/10 bg-steel p-2 text-white/60 transition hover:bg-blade hover:text-white"
+      {/* Composer Area */}
+      <div className="p-4 bg-[#111214]">
+        {attachmentOpen && (
+          <div className="mb-3 rounded-2xl bg-black/40 p-4 border border-white/5 animate-in slide-in-from-bottom-2 duration-200">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#9da0a7]">Attach File</span>
+              <button 
+                onClick={() => onToggleAttachment(false)}
+                className="rounded-full bg-white/5 p-1 text-[#9da0a7] hover:bg-white/10 hover:text-white transition-colors"
+                title="Cancel upload"
               >
                 <X size={14} />
               </button>
-            )}
+            </div>
+            
+            <div className="flex items-center gap-4">
+               {attachmentUrl ? (
+                 <div className="relative group max-w-[120px]">
+                   <img src={attachmentUrl} alt="Preview" className="h-16 w-full rounded-lg object-cover ring-2 ring-[#ff3b5f]/30" />
+                   <button 
+                     onClick={() => onAttachmentChange("")}
+                     className="absolute -right-2 -top-2 rounded-full bg-[#da373c] p-1 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                     <X size={12} />
+                   </button>
+                 </div>
+               ) : (
+                <div className="flex flex-1 items-center gap-4">
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-white/10 text-[#9da0a7] transition-all hover:border-[#ff3b5f]/50 hover:bg-[#ff3b5f]/5 hover:text-white group disabled:opacity-50"
+                  >
+                    {isUploading ? <LoaderCircle className="animate-spin" size={20} /> : <ImageIcon size={20} className="group-hover:scale-110 transition-transform" />}
+                    <span className="text-[9px] font-bold uppercase tracking-tighter">Upload</span>
+                  </button>
+                  <div className="flex-1 opacity-40">
+                    <p className="text-[11px] font-medium">Click box to upload or paste a link below</p>
+                    <p className="text-[9px] mt-0.5">Images, PDFs, and more (Max 5MB)</p>
+                  </div>
+                </div>
+               )}
+               <input 
+                 type="file" 
+                 className="hidden" 
+                 ref={fileInputRef} 
+                 onChange={handleFileUpload} 
+                 accept="image/*"
+               />
+
+               <div className="flex-1">
+                 <div className="relative">
+                   <Link2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9da0a7]" />
+                   <input
+                     type="text"
+                     value={attachmentUrl}
+                     onChange={(e) => onAttachmentChange(e.target.value)}
+                     placeholder="Paste an external image or link URL..."
+                     className="h-11 w-full rounded-xl bg-black/40 pl-10 pr-4 text-xs font-medium text-white transition-all focus:bg-black/60 focus:outline-none focus:ring-2 focus:ring-[#ff3b5f]/30"
+                   />
+                 </div>
+                 {uploadError && <p className="mt-2 text-[10px] font-bold text-[#da373c] animate-in fade-in">{uploadError}</p>}
+               </div>
+            </div>
           </div>
-        ) : null}
-        <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-steel px-4 py-3">
-          <label className="cursor-pointer rounded-2xl bg-black/20 p-2 text-white/65 hover:bg-black/40 hover:text-white transition">
-            <Paperclip size={16} />
-            <input 
-              ref={fileInputRef}
-              type="file" 
-              className="hidden" 
-              accept="image/*" 
-              onChange={handleFileUpload}
-              disabled={!canSend || isUploading}
+        )}
+
+        {typingMembers.length > 0 && (
+           <div className="px-2 mb-1.5 h-4 flex items-center gap-1.5 animate-in fade-in duration-300">
+              <div className="flex gap-0.5">
+                  <div className="w-1 h-1 bg-[#ff3b5f] rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <div className="w-1 h-1 bg-[#ff3b5f] rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <div className="w-1 h-1 bg-[#ff3b5f] rounded-full animate-bounce" />
+              </div>
+              <p className="text-[10px] font-bold text-[#9da0a7] tracking-tight">
+                <span className="text-white/80">{typingMembers.join(", ")}</span> {typingMembers.length === 1 ? 'is' : 'are'} typing...
+              </p>
+           </div>
+        )}
+
+        <div className="group relative flex flex-col rounded-2xl bg-[#1e1f22] p-1 shadow-2xl transition-all focus-within:ring-2 focus-within:ring-[#ff3b5f]/30">
+          <div className="flex items-center gap-2 px-1">
+            <button 
+              onClick={() => onToggleAttachment(true)}
+              className={clsx(
+                "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-all hover:scale-105 active:scale-95",
+                attachmentOpen ? "bg-[#ff3b5f] text-white" : "bg-white/5 text-[#9da0a7] hover:bg-white/10 hover:text-white"
+              )}
+            >
+              <Paperclip size={18} />
+            </button>
+            <input
+              type="text"
+              value={composerValue}
+              onChange={(e) => onComposerChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSend();
+                }
+              }}
+              placeholder={`Message #${title}`}
+              className="flex-1 bg-transparent py-3.5 text-sm font-medium text-[#dbdee1] placeholder-[#6d6f78] focus:outline-none"
             />
-          </label>
-          <input
-            className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35"
-            placeholder={canSend ? `Transmit to ${channelPrefix}${channelName}` : "Sign in to transmit"}
-            value={composerValue}
-            disabled={!canSend}
-            onChange={(event) => onComposerChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && canSend) {
-                event.preventDefault();
-                onSend();
-              }
-            }}
-          />
-          <button
-            onClick={onSend}
-            disabled={pending || !canSend}
-            className="rounded-2xl bg-ember p-3 text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <SendHorizontal size={17} />
-          </button>
+            <button 
+              onClick={onSend}
+              disabled={pending || (!composerValue.trim() && !attachmentUrl.trim())}
+              className={clsx(
+                "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-all hover:scale-105 active:scale-95",
+                composerValue.trim() || attachmentUrl.trim()
+                  ? "bg-gradient-to-r from-[#ff3b5f] to-[#ff8a5b] text-white shadow-lg shadow-[#ff3b5f]/20"
+                  : "bg-white/5 text-[#4e5058] cursor-not-allowed"
+              )}
+            >
+              {pending ? (
+                <LoaderCircle className="animate-spin" size={18} />
+              ) : (
+                <SendHorizontal size={18} />
+              )}
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="mt-3 flex items-center justify-between rounded-xl bg-[#da373c]/10 px-4 py-2 border border-[#da373c]/20 animate-in slide-in-from-top-2">
+            <p className="text-xs font-bold text-[#da373c]">{error}</p>
+            <button onClick={() => setError(null)} className="text-[#da373c] hover:text-white">
+              <X size={14} />
+            </button>
+          </div>
+        )}
       </div>
-    </section>
+    </div>
   );
 }

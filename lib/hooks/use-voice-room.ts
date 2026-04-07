@@ -60,6 +60,8 @@ export function useVoiceRoom(
   const audioSourceRefs = useRef<Record<string, MediaStreamAudioSourceNode>>({});
   const localScreenStreamRef = useRef<MediaStream | null>(null);
   const signalRafRef = useRef<number | null>(null);
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
   const [voiceParticipants, setVoiceParticipants] = useState<number | null>(null);
@@ -186,6 +188,17 @@ export function useVoiceRoom(
     setParticipantLevels({});
     setRoomActivityLevel(0);
     setVoiceConnectionStatus("idle");
+
+    if (silentAudioRef.current) {
+      silentAudioRef.current.pause();
+      silentAudioRef.current.src = "";
+      silentAudioRef.current = null;
+    }
+
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
   }
 
   async function leaveVoiceRoom(forcedServerId?: string) {
@@ -352,6 +365,27 @@ export function useVoiceRoom(
       setIsDeafened(false);
       setVoiceConnectionStatus("connected");
       playUiSound("join");
+
+      // Start silent heartbeat to keep background tab active for audio
+      if (typeof window !== "undefined") {
+        const audio = new Audio();
+        audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAP8A/wD/Lw==";
+        audio.loop = true;
+        audio.volume = 0.001; 
+        silentAudioRef.current = audio;
+        void audio.play().catch(() => null);
+
+        // Periodically ping signaling channel to keep websocket warm
+        pingIntervalRef.current = setInterval(() => {
+          if (voiceSignalChannelRef.current && currentUser) {
+            void voiceSignalChannelRef.current.send({
+              type: "broadcast",
+              event: "ping",
+              payload: { userId: currentUser.id, timestamp: Date.now() }
+            });
+          }
+        }, 25000);
+      }
     } catch {
       setError("Microphone access failed or voice could not start.");
       setVoiceConnectionStatus("failed");

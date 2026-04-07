@@ -1,7 +1,23 @@
-import { useState, useEffect, useRef } from "react";
-import clsx from "clsx";
-import { Hand, Headphones, Keyboard, Maximize2, Mic, MicOff, MonitorUp, MonitorX, Radio, Users, Volume2 } from "lucide-react";
+"use client";
 
+import { useEffect, useRef } from "react";
+import clsx from "clsx";
+import { 
+  Maximize2, 
+  Mic, 
+  MicOff, 
+  MonitorUp, 
+  MonitorX, 
+  Radio, 
+  Users, 
+  Volume2, 
+  Headphones, 
+  Hand, 
+  Keyboard,
+  PhoneOff
+} from "lucide-react";
+
+import { useNightlink } from "@/lib/context";
 import type { Member } from "@/lib/types";
 
 export function VoiceMemberRow({
@@ -22,49 +38,48 @@ export function VoiceMemberRow({
   }, [videoStream]);
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-steel px-3 py-3 transition hover:bg-white/5">
+    <div className="flex flex-col gap-2 rounded-2xl border border-white/5 bg-black/20 px-3 py-3 transition hover:bg-white/5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
             className={clsx(
               "relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm transition",
               isSpeaking &&
-                "ring-2 ring-sea/80 shadow-[0_0_22px_rgba(123,246,255,0.35)]"
+                "ring-2 ring-[#ff3b5f]/80 shadow-[0_0_22px_rgba(255,59,95,0.35)]"
             )}
           >
             {member.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={member.avatarUrl} alt={member.name} className="h-full w-full rounded-2xl object-cover" />
             ) : (
-              member.name.slice(0, 2).toUpperCase()
+              <div className="text-white/40 uppercase font-bold">{member.name.slice(0, 1)}</div>
             )}
             <span
               className={clsx(
-                "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-panel",
+                "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-black/40",
                 isSpeaking
-                  ? "bg-sea"
+                  ? "bg-[#ff3b5f]"
                   : member.status === "online"
-                    ? "bg-sea"
+                    ? "bg-[#23a559]"
                     : member.status === "idle"
-                      ? "bg-amber-300"
-                      : "bg-ember"
+                      ? "bg-amber-400"
+                      : "bg-[#da373c]"
               )}
             />
           </div>
           <div>
-            <p className="font-medium">{member.name}</p>
-            <p className="text-sm text-white/45">
+            <p className="text-sm font-semibold text-white">{member.name}</p>
+            <p className="text-[10px] font-bold text-[#9da0a7] uppercase tracking-wider">
               {isSpeaking ? "Speaking now" : member.role}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {videoStream && <MonitorUp size={14} className="text-sea" />}
-          {isSpeaking && <Volume2 size={16} className="animate-pulse text-sea" />}
+          {videoStream && <MonitorUp size={14} className="text-[#ff3b5f] animate-pulse" />}
+          {isSpeaking && <Volume2 size={16} className="animate-pulse text-[#ff3b5f]" />}
         </div>
       </div>
       {videoStream && (
-        <div className="group/video mt-2 overflow-hidden rounded-xl bg-black/40 aspect-video relative">
+        <div className="group/video mt-2 overflow-hidden rounded-xl bg-black/40 aspect-video relative ring-1 ring-white/10 transition-all hover:ring-[#ff3b5f]/50">
           <video
             ref={videoRef}
             autoPlay
@@ -74,10 +89,10 @@ export function VoiceMemberRow({
           />
           <button
             onClick={() => videoRef.current?.requestFullscreen().catch(() => null)}
-            className="absolute top-2 right-2 rounded-xl bg-black/60 p-1.5 text-white/60 backdrop-blur opacity-0 transition group-hover/video:opacity-100 hover:text-white hover:bg-black/90"
+            className="absolute top-2 right-2 rounded-lg bg-black/60 p-1.5 text-white/60 backdrop-blur opacity-0 transition group-hover/video:opacity-100 hover:text-white hover:bg-[#ff3b5f]"
             title="Fullscreen"
           >
-            <Maximize2 size={14} />
+            <Maximize2 size={12} />
           </button>
         </div>
       )}
@@ -85,283 +100,180 @@ export function VoiceMemberRow({
   );
 }
 
-export function VoicePanel({
-  members,
-  roomName,
-  joined,
-  muted,
-  deafened,
-  connecting,
-  pushToTalk,
-  transmitting,
-  signalLevels,
-  outputVolume,
-  connectionStatus,
-  speakingUserIds,
-  participants,
-  onToggleJoin,
-  onToggleMute,
-  onToggleDeafen,
-  onTogglePushToTalk,
-  onOutputVolumeChange,
-  pushToTalkKey,
-  onPushToTalkKeyChange,
-  isScreenSharing,
-  onToggleScreenShare,
-  remoteVideoStreams
-}: {
-  members: Member[];
-  roomName: string;
-  joined: boolean;
-  muted: boolean;
-  deafened: boolean;
-  connecting: boolean;
-  pushToTalk: boolean;
-  transmitting: boolean;
-  signalLevels: number[];
-  outputVolume: number;
-  connectionStatus: "idle" | "connecting" | "connected" | "reconnecting" | "failed";
-  speakingUserIds: string[];
-  participants: number;
-  pushToTalkKey: string;
-  onPushToTalkKeyChange: (key: string) => void;
-  onToggleJoin: () => void;
-  onToggleMute: () => void;
-  onToggleDeafen: () => void;
-  onTogglePushToTalk: () => void;
-  onOutputVolumeChange: (value: number) => void;
-  isScreenSharing: boolean;
-  onToggleScreenShare: () => void;
-  remoteVideoStreams: Record<string, MediaStream>;
-}) {
-  const [isListeningKey, setIsListeningKey] = useState(false);
+export function VoicePanel() {
+  const {
+    activeVoiceChannel,
+    activeMembers: members,
+    joinedVoiceRoomId,
+    isMuted: muted,
+    setIsMuted,
+    isDeafened: deafened,
+    setIsDeafened,
+    isPushToTalk: pushToTalk,
+    setIsPushToTalk,
+    isVoiceConnecting: connecting,
+    voiceConnectionStatus: connectionStatus,
+    signalLevels,
+    outputVolume,
+    setOutputVolume,
+    isScreenSharing,
+    handleScreenShareToggle,
+    handleVoiceToggle,
+    remoteVideoStreams,
+    participantLevels
+  } = useNightlink();
 
-  const statusLabel =
-    connectionStatus === "failed"
-      ? "Voice failed"
-      : connectionStatus === "reconnecting"
-        ? "Reconnecting"
-        : connectionStatus === "connecting"
-          ? "Connecting"
-          : connectionStatus === "connected"
-            ? "Connected"
-            : "Idle";
+  const joined = !!joinedVoiceRoomId;
+  const roomName = activeVoiceChannel?.name ?? "Voice";
 
   return (
-    <aside className="flex w-full flex-col rounded-[28px] border border-white/10 bg-panel/95 p-5 shadow-panel backdrop-blur xl:w-[320px]">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <p className="font-display text-2xl uppercase tracking-[0.08em]">{roomName}</p>
-          <p className="text-sm text-white/45">
-            {participants} operators connected
-            <span
-              className={clsx(
-                "ml-3 inline-block rounded-full px-2 py-1 text-[10px] uppercase tracking-[0.18em]",
-                connectionStatus === "connected"
-                  ? "bg-sea/12 text-sea"
-                  : connectionStatus === "failed"
-                    ? "bg-ember/12 text-ember"
-                    : "bg-white/8 text-white/55"
-              )}
-            >
-              {statusLabel}
-            </span>
-          </p>
+    <div className="flex h-full flex-col bg-[#111214]">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-white/5 p-4 py-3 bg-[#111214]/50 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <Radio size={16} className={clsx(joined ? "text-[#ff3b5f]" : "text-[#9da0a7]")} />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-white">{roomName}</h3>
         </div>
-        <div className="rounded-2xl border border-ember/20 bg-ember/10 p-3 text-ember">
-          <Radio size={18} />
+        <div className="flex items-center gap-1.5 rounded-full bg-white/5 px-2 py-1">
+          <Users size={12} className="text-[#9da0a7]" />
+          <span className="text-[10px] font-bold text-white">{members.length}</span>
         </div>
       </div>
 
-      <div className="mb-5 rounded-3xl border border-white/10 bg-black/20 p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm text-sea">
-          <Volume2 size={16} />
-          <span>Signal Feed</span>
-        </div>
-        <div className="flex items-end gap-2">
-          {signalLevels.map((height, index) => (
-            <span
-              key={index}
-              className="w-3 rounded-full bg-gradient-to-t from-ember via-violet-500 to-sea transition-[height] duration-100 ease-out"
-              style={{ height: `${height}px` }}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-5 flex gap-3">
-        <button
-          onClick={onToggleJoin}
-          className={clsx(
-            "flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition hover:brightness-105",
-            joined ? "bg-sea text-ink" : "bg-ember text-white"
-          )}
-        >
-          <Mic size={16} />
-          {connecting ? "Connecting" : joined ? "Leave" : "Join Voice"}
-        </button>
-        <button
-          onClick={onToggleScreenShare}
-          disabled={!joined}
-          className={clsx(
-            "flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition",
-            joined
-              ? isScreenSharing
-                ? "border-sea/20 bg-sea/10 text-sea"
-                : "border-white/10 bg-steel text-white/75 hover:bg-blade hover:text-white"
-              : "border-white/10 bg-steel text-white/30"
-          )}
-        >
-          {isScreenSharing ? <MonitorX size={16} /> : <MonitorUp size={16} />}
-          {isScreenSharing ? "Stop" : "Share"}
-        </button>
-      </div>
-
-      <div className="mb-5 flex gap-3">
-        <button
-          onClick={onToggleMute}
-          disabled={!joined}
-          title={!joined ? "Join a voice room first" : muted ? "Unmute microphone" : "Mute microphone"}
-          className={clsx(
-            "flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition",
-            joined
-              ? muted
-                ? "border-ember/20 bg-ember/10 text-ember"
-                : "border-white/10 bg-steel text-white/75 hover:bg-blade"
-              : "border-white/10 bg-steel text-white/30"
-          )}
-        >
-          <MicOff size={16} />
-          {muted ? "Muted" : "Mute"}
-        </button>
-      </div>
-
-      <div className="mb-5 flex gap-3">
-        <button
-          onClick={onToggleDeafen}
-          disabled={!joined}
-          title={!joined ? "Join a voice room first" : deafened ? "Undeafen room audio" : "Deafen room audio"}
-          className={clsx(
-            "flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition",
-            joined
-              ? deafened
-                ? "border-ember/20 bg-ember/10 text-ember"
-                : "border-white/10 bg-steel text-white/75 hover:bg-blade"
-              : "border-white/10 bg-steel text-white/30"
-          )}
-        >
-          <Headphones size={16} />
-          {deafened ? "Deafened" : "Deafen"}
-        </button>
-      </div>
-
-      <div className="mb-5 rounded-2xl border border-white/10 bg-black/15 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
-              Push To Talk
-            </p>
-            <div className="mt-1.5 flex items-center gap-2">
-              <span className="text-xs text-white/45">Hold</span>
-              <button
-                onClick={() => {
-                  if (isListeningKey) {
-                    setIsListeningKey(false);
-                    return;
-                  }
-                  setIsListeningKey(true);
-                  const listener = (event: KeyboardEvent) => {
-                    event.preventDefault();
-                    onPushToTalkKeyChange(event.code);
-                    setIsListeningKey(false);
-                    window.removeEventListener("keydown", listener);
-                  };
-                  window.addEventListener("keydown", listener);
-                }}
-                className={clsx(
-                  "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[10px] font-bold tracking-wider transition-colors",
-                  isListeningKey
-                    ? "border-sea/50 bg-sea/20 text-sea"
-                    : "border-white/10 bg-black/40 text-white/70 hover:bg-white/10 hover:text-white"
-                )}
-              >
-                <Keyboard size={10} />
-                {isListeningKey ? "Listening..." : pushToTalkKey}
-              </button>
-              <span className="text-xs text-white/45">to talk.</span>
-            </div>
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+        {members.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center p-8 text-center opacity-30 grayscale uppercase tracking-widest text-[10px]">
+            <Radio size={32} className="mb-4" />
+            <p>Room is empty</p>
           </div>
-          <button
-            onClick={onTogglePushToTalk}
-            className={clsx(
-              "inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition",
-              pushToTalk
-                ? "border-sea/20 bg-sea/10 text-sea"
-                : "border-white/10 bg-steel text-white/70 hover:bg-blade"
-            )}
-          >
-            <Hand size={14} />
-            {pushToTalk ? "On" : "Off"}
-          </button>
-        </div>
-        {pushToTalk ? (
-          <div
-            className={clsx(
-              "mt-3 rounded-xl px-3 py-2 text-xs uppercase tracking-[0.12em]",
-              transmitting ? "bg-sea/10 text-sea" : "bg-white/5 text-white/45"
-            )}
-          >
-            {transmitting ? "Transmitting" : "Standby"}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mb-5 rounded-2xl border border-white/10 bg-black/15 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
-              Room Volume
-            </p>
-            <p className="mt-1 text-xs text-white/45">
-              Controls only what you hear in this room.
-            </p>
-          </div>
-          <span className="text-xs uppercase tracking-[0.12em] text-sea">
-            {Math.round(outputVolume * 100)}%
-          </span>
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={Math.round(outputVolume * 100)}
-          onChange={(event) => onOutputVolumeChange(Number(event.target.value) / 100)}
-          className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[#7bf6ff]"
-        />
-      </div>
-
-      <div className="mb-3 flex items-center gap-2 text-sm text-white/50">
-        <Users size={15} />
-        <span>Members</span>
-      </div>
-
-      <div className="space-y-3">
-        {members.length ? (
+        ) : (
           members.map((member) => (
             <VoiceMemberRow
               key={member.id}
               member={member}
-              isSpeaking={speakingUserIds.includes(member.id)}
+              isSpeaking={(participantLevels[member.id] ?? 0) > 0.05}
               videoStream={remoteVideoStreams[member.id]}
             />
           ))
-        ) : (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-5 text-sm text-white/45">
-            No one is in this room yet.
-          </div>
         )}
       </div>
-    </aside>
+
+      {/* Connection & Controls Area */}
+      <div className="mt-auto border-t border-white/5 bg-[#18191c]/80 p-4 backdrop-blur-md">
+        {/* Connection Status Banner */}
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative">
+              <div 
+                className={clsx(
+                  "h-2 w-2 rounded-full",
+                  connectionStatus === "connected" ? "bg-[#23a559]" : 
+                  connectionStatus === "connecting" ? "bg-amber-400" : "bg-[#9da0a7]"
+                )} 
+              />
+              {connectionStatus === "connected" && <div className="absolute inset-0 rounded-full bg-[#23a559] animate-ping opacity-50" />}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white truncate">
+                {connectionStatus === "connected" ? "Voice Connected" : 
+                 connectionStatus === "connecting" ? "Connecting..." : "Voice Idle"}
+              </span>
+              <span className="text-[9px] font-medium text-[#9da0a7] truncate">{roomName} / HQ</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Level Bars */}
+        <div className="mb-4 flex items-end justify-center gap-[3px] h-10 px-6">
+           {signalLevels.map((lvl, i) => (
+             <div 
+               key={i} 
+               className="w-1 rounded-full bg-gradient-to-t from-[#ff3b5f] to-[#ff8a5b] transition-all duration-75"
+               style={{ height: `${lvl}%`, opacity: connectionStatus === 'connected' ? 1 : 0.1 }}
+             />
+           ))}
+        </div>
+
+        {/* Controls Layout */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-center gap-1.5">
+            <button
+              onClick={() => setIsMuted((v) => !v)}
+              className={clsx(
+                "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all",
+                muted ? "bg-[#da373c] text-white shadow-lg shadow-[#da373c]/20" : "bg-white/5 text-[#dbdee1] hover:bg-white/10"
+              )}
+            >
+              {muted ? <MicOff size={14} /> : <Mic size={14} />}
+              <span>{muted ? "Muted" : "Active"}</span>
+            </button>
+            <button
+               onClick={() => setIsDeafened((v) => !v)}
+               className={clsx(
+                 "flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all",
+                 deafened ? "bg-[#da373c] text-white shadow-lg shadow-[#da373c]/20" : "bg-white/5 text-[#dbdee1] hover:bg-white/10"
+               )}
+            >
+              <Headphones size={14} />
+              <span>{deafened ? "Deafened" : "Sound On"}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5">
+            <button
+              onClick={handleScreenShareToggle}
+              className={clsx(
+                "flex h-10 items-center justify-center rounded-xl transition-all",
+                isScreenSharing ? "bg-[#23a559] text-white" : "bg-white/5 text-[#9da0a7] hover:bg-white/10"
+              )}
+              title="Screen Share"
+            >
+              {isScreenSharing ? <MonitorX size={18} /> : <MonitorUp size={18} />}
+            </button>
+            <button
+              onClick={() => setIsPushToTalk((v) => !v)}
+              className={clsx(
+                "flex h-10 items-center justify-center rounded-xl transition-all",
+                pushToTalk ? "bg-[#ff3b5f]/10 text-[#ff3b5f] ring-1 ring-[#ff3b5f]/50" : "bg-white/5 text-[#9da0a7] hover:bg-white/10"
+              )}
+              title="Push to Talk"
+            >
+              {pushToTalk ? <Hand size={18} /> : <Keyboard size={18} />}
+            </button>
+            <button 
+              className="flex h-10 items-center justify-center rounded-xl bg-white/5 text-[#9da0a7] hover:bg-white/10 transition-all"
+              title="Activity"
+            >
+              <Radio size={18} />
+            </button>
+            <button 
+              onClick={() => handleVoiceToggle(activeVoiceChannel?.id ?? null)}
+              className={clsx(
+                "flex h-10 items-center justify-center rounded-xl transition-all",
+                joined ? "bg-[#da373c]/10 text-[#da373c] hover:bg-[#da373c] hover:text-white" : "bg-[#23a559]/10 text-[#23a559] hover:bg-[#23a559] hover:text-white"
+              )}
+              title={joined ? "Leave Voice" : "Join Voice"}
+            >
+               {joined ? <PhoneOff size={18} /> : <Volume2 size={18} />}
+            </button>
+          </div>
+
+          {/* Volume Slider */}
+          <div className="mt-1 flex items-center gap-3 rounded-xl bg-black/20 p-2.5">
+            <Volume2 size={14} className="text-[#9da0a7] shrink-0" />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={outputVolume}
+              onChange={(e) => setOutputVolume(parseFloat(e.target.value))}
+              className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[#ff3b5f] hover:accent-[#ff8a5b]"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
