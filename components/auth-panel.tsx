@@ -82,13 +82,6 @@ export function AuthPanel() {
               {loading && <LoaderCircle size={18} className="animate-spin ml-2" />}
             </button>
             
-            <button
-              disabled
-              className="flex w-full items-center justify-center gap-4 rounded-2xl bg-white/5 border border-white/5 py-4 text-sm font-bold text-[#9da0a7] opacity-40 cursor-not-allowed"
-            >
-              <Mail size={18} />
-              <span>Continue with Discord</span>
-            </button>
           </div>
 
           {message && (
