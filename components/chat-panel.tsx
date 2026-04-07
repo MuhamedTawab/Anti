@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
-import { Bell, Copy, Link2, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bell, Copy, ImageIcon, Link2, LoaderCircle, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 import type { Message } from "@/lib/types";
 
@@ -36,6 +37,33 @@ export function ChatPanel({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(items.length);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      console.error("No supabase client available for upload");
+      setIsUploading(false);
+      return;
+    }
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+    const filePath = `uploads/${fileName}`;
+
+    const { data, error } = await supabase.storage.from("attachments").upload(filePath, file);
+
+    setIsUploading(false);
+    if (!error && data) {
+      const { data: publicUrlData } = supabase.storage.from("attachments").getPublicUrl(data.path);
+      onAttachmentChange(publicUrlData.publicUrl);
+    } else {
+      console.error("Upload error:", error);
+    }
+  };
 
   // Only scroll when new messages are added AND user is already near the bottom
   useEffect(() => {
@@ -166,27 +194,46 @@ export function ChatPanel({
       ) : null}
 
       <div className="border-t border-white/10 p-5">
-        {attachmentOpen ? (
-          <div className="mb-3 flex items-center gap-2 rounded-[24px] border border-white/10 bg-black/20 px-4 py-3">
-            <Link2 size={16} className="text-sea" />
-            <input
-              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/35"
-              placeholder="Paste image or attachment URL"
-              value={attachmentUrl}
-              onChange={(event) => onAttachmentChange(event.target.value)}
-            />
-            <button
-              onClick={onToggleAttachment}
-              className="rounded-xl border border-white/10 bg-steel p-2 text-white/60 transition hover:bg-blade hover:text-white"
-            >
-              <X size={14} />
-            </button>
+        {attachmentOpen || attachmentUrl ? (
+          <div className="mb-3 flex items-center gap-3 rounded-[24px] border border-white/10 bg-black/20 px-4 py-3">
+            <ImageIcon size={16} className="text-sea" />
+            <div className="flex-1 truncate text-sm text-sea">
+              {isUploading ? (
+                <span className="flex items-center gap-2">
+                  <LoaderCircle size={14} className="animate-spin" /> Uploading image...
+                </span>
+              ) : attachmentUrl ? (
+                <a href={attachmentUrl} target="_blank" rel="noreferrer" className="underline hover:text-white transition">
+                  Attached Image Ready
+                </a>
+              ) : (
+                <span className="text-white/45">Ready to upload...</span>
+              )}
+            </div>
+            {(attachmentUrl || !isUploading) && (
+              <button
+                onClick={() => {
+                  onAttachmentChange("");
+                  if (attachmentOpen) onToggleAttachment();
+                }}
+                className="rounded-xl border border-white/10 bg-steel p-2 text-white/60 transition hover:bg-blade hover:text-white"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         ) : null}
         <div className="flex items-center gap-3 rounded-[28px] border border-white/10 bg-steel px-4 py-3">
-          <button onClick={onToggleAttachment} className="rounded-2xl bg-black/20 p-2 text-white/65">
+          <label className="cursor-pointer rounded-2xl bg-black/20 p-2 text-white/65 hover:bg-black/40 hover:text-white transition">
             <Paperclip size={16} />
-          </button>
+            <input 
+              type="file" 
+              className="hidden" 
+              accept="image/*" 
+              onChange={handleFileUpload}
+              disabled={!canSend || isUploading}
+            />
+          </label>
           <input
             className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35"
             placeholder={canSend ? `Transmit to ${channelPrefix}${channelName}` : "Sign in to transmit"}

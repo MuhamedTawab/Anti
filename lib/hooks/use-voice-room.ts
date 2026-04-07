@@ -19,6 +19,9 @@ export interface VoiceRoomResult {
   setIsPushToTalk: React.Dispatch<React.SetStateAction<boolean>>;
   isPushToTalkActive: boolean;
   setIsPushToTalkActive: React.Dispatch<React.SetStateAction<boolean>>;
+  isScreenSharing: boolean;
+  handleScreenShareToggle: () => Promise<void>;
+  remoteVideoStreams: Record<string, MediaStream>;
   pushToTalkKey: string;
   setPushToTalkKey: (key: string) => void;
   voiceConnectionStatus: "idle" | "connecting" | "connected" | "reconnecting" | "failed";
@@ -55,6 +58,7 @@ export function useVoiceRoom(
   const localAnalyserRef = useRef<AnalyserNode | null>(null);
   const remoteAnalyserRefs = useRef<Record<string, AnalyserNode>>({});
   const audioSourceRefs = useRef<Record<string, MediaStreamAudioSourceNode>>({});
+  const localScreenStreamRef = useRef<MediaStream | null>(null);
   const signalRafRef = useRef<number | null>(null);
 
   const [joinedVoiceRoomId, setJoinedVoiceRoomId] = useState<string | null>(null);
@@ -64,6 +68,8 @@ export function useVoiceRoom(
   const [isDeafened, setIsDeafened] = useState(false);
   const [isPushToTalk, setIsPushToTalk] = useState(false);
   const [isPushToTalkActive, setIsPushToTalkActive] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [remoteVideoStreams, setRemoteVideoStreams] = useState<Record<string, MediaStream>>({});
   const [pushToTalkKey, setPushToTalkKeyState] = useState("Space");
 
   useEffect(() => {
@@ -166,12 +172,16 @@ export function useVoiceRoom(
     Object.keys(peerConnectionsRef.current).forEach(cleanupPeer);
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
     localStreamRef.current = null;
+    localScreenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localScreenStreamRef.current = null;
     audioSourceRefs.current.local?.disconnect();
     delete audioSourceRefs.current.local;
     localAnalyserRef.current = null;
     setIsMuted(false);
     setIsDeafened(false);
     setIsPushToTalkActive(false);
+    setIsScreenSharing(false);
+    setRemoteVideoStreams({});
     setSignalLevels([14, 18, 12, 22, 16, 24, 13, 19, 15, 21]);
     setParticipantLevels({});
     setRoomActivityLevel(0);
@@ -222,6 +232,12 @@ export function useVoiceRoom(
       }
     });
 
+    localScreenStreamRef.current?.getTracks().forEach((track) => {
+      if (localScreenStreamRef.current) {
+        peer.addTrack(track, localScreenStreamRef.current);
+      }
+    });
+
     peer.onicecandidate = (event) => {
       if (!event.candidate || !currentUser) return;
       void sendVoiceSignal(
@@ -236,26 +252,41 @@ export function useVoiceRoom(
 
     peer.ontrack = (event) => {
       const [stream] = event.streams;
-      if (!stream) return;
+      const { track } = event;
+      if (!stream || !track) return;
 
-      const existingAudio = remoteAudioRef.current[remoteUserId];
-      if (existingAudio) {
-        existingAudio.srcObject = stream;
-        attachAnalyser(stream, remoteUserId);
-        existingAudio.muted = isDeafened;
-        existingAudio.volume = outputVolume;
-        void existingAudio.play().catch(() => null);
+      if (track.kind === "video") {
+        setRemoteVideoStreams((prev) => ({ ...prev, [remoteUserId]: stream }));
+        track.onended = () => {
+          setRemoteVideoStreams((prev) => {
+            const next = { ...prev };
+            delete next[remoteUserId];
+            return next;
+          });
+        };
         return;
       }
 
-      const audio = new Audio();
-      audio.autoplay = true;
-      audio.srcObject = stream;
-      audio.muted = isDeafened;
-      audio.volume = outputVolume;
-      remoteAudioRef.current[remoteUserId] = audio;
-      attachAnalyser(stream, remoteUserId);
-      void audio.play().catch(() => null);
+      if (track.kind === "audio") {
+        const existingAudio = remoteAudioRef.current[remoteUserId];
+        if (existingAudio) {
+          existingAudio.srcObject = stream;
+          attachAnalyser(stream, remoteUserId);
+          existingAudio.muted = isDeafened;
+          existingAudio.volume = outputVolume;
+          void existingAudio.play().catch(() => null);
+          return;
+        }
+
+        const audio = new Audio();
+        audio.autoplay = true;
+        audio.srcObject = stream;
+        audio.muted = isDeafened;
+        audio.volume = outputVolume;
+        remoteAudioRef.current[remoteUserId] = audio;
+        attachAnalyser(stream, remoteUserId);
+        void audio.play().catch(() => null);
+      }
     };
 
     peer.onconnectionstatechange = () => {
@@ -328,6 +359,49 @@ export function useVoiceRoom(
       cleanupVoiceSession();
     } finally {
       setIsVoiceConnecting(false);
+    }
+  }
+
+  async function handleScreenShareToggle() {
+    if (isScreenSharing) {
+      localScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      localScreenStreamRef.current = null;
+      setIsScreenSharing(false);
+
+      // Remove video track from existing connections
+      Object.values(peerConnectionsRef.current).forEach((pc) => {
+        pc.getSenders().forEach((sender) => {
+          if (sender.track?.kind === "video") {
+            pc.removeTrack(sender);
+          }
+        });
+      });
+      // Optionally renegotiate here if needed for robust removal, but removing track often suffices.
+    } else {
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        localScreenStreamRef.current = screenStream;
+        setIsScreenSharing(true);
+
+        screenStream.getVideoTracks()[0].onended = () => {
+           void handleScreenShareToggle(); // recursively turn off
+        };
+
+        // Add track to existing peers and renegotiate
+        Object.entries(peerConnectionsRef.current).forEach(async ([userId, pc]) => {
+           screenStream.getTracks().forEach((track) => pc.addTrack(track, screenStream));
+           if (voiceSignalChannelRef.current && currentUser) {
+             const offer = await pc.createOffer();
+             await pc.setLocalDescription(offer);
+             await sendVoiceSignal(
+               { to: userId, from: currentUser.id, description: offer },
+               voiceSignalChannelRef.current
+             );
+           }
+        });
+      } catch (e) {
+        setError("Could not capture screen.");
+      }
     }
   }
 
@@ -568,6 +642,9 @@ export function useVoiceRoom(
     createPeerConnection,
     handleVoiceToggle,
     pushToTalkKey,
-    setPushToTalkKey
+    setPushToTalkKey,
+    isScreenSharing,
+    handleScreenShareToggle,
+    remoteVideoStreams
   };
 }

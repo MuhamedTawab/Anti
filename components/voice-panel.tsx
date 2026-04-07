@@ -1,8 +1,82 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import clsx from "clsx";
-import { Hand, Headphones, Keyboard, Mic, MicOff, Radio, Users, Volume2 } from "lucide-react";
+import { Hand, Headphones, Keyboard, Mic, MicOff, MonitorUp, MonitorX, Radio, Users, Volume2 } from "lucide-react";
 
 import type { Member } from "@/lib/types";
+
+export function VoiceMemberRow({
+  member,
+  isSpeaking,
+  videoStream
+}: {
+  member: Member;
+  isSpeaking: boolean;
+  videoStream?: MediaStream;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && videoStream) {
+      videoRef.current.srcObject = videoStream;
+    }
+  }, [videoStream]);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-steel px-3 py-3 transition hover:bg-white/5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div
+            className={clsx(
+              "relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm transition",
+              isSpeaking &&
+                "ring-2 ring-sea/80 shadow-[0_0_22px_rgba(123,246,255,0.35)]"
+            )}
+          >
+            {member.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={member.avatarUrl} alt={member.name} className="h-full w-full rounded-2xl object-cover" />
+            ) : (
+              member.name.slice(0, 2).toUpperCase()
+            )}
+            <span
+              className={clsx(
+                "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-panel",
+                isSpeaking
+                  ? "bg-sea"
+                  : member.status === "online"
+                    ? "bg-sea"
+                    : member.status === "idle"
+                      ? "bg-amber-300"
+                      : "bg-ember"
+              )}
+            />
+          </div>
+          <div>
+            <p className="font-medium">{member.name}</p>
+            <p className="text-sm text-white/45">
+              {isSpeaking ? "Speaking now" : member.role}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {videoStream && <MonitorUp size={14} className="text-sea" />}
+          {isSpeaking && <Volume2 size={16} className="animate-pulse text-sea" />}
+        </div>
+      </div>
+      {videoStream && (
+        <div className="mt-2 overflow-hidden rounded-xl bg-black/40 aspect-video relative">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function VoicePanel({
   members,
@@ -24,7 +98,10 @@ export function VoicePanel({
   onTogglePushToTalk,
   onOutputVolumeChange,
   pushToTalkKey,
-  onPushToTalkKeyChange
+  onPushToTalkKeyChange,
+  isScreenSharing,
+  onToggleScreenShare,
+  remoteVideoStreams
 }: {
   members: Member[];
   roomName: string;
@@ -46,6 +123,9 @@ export function VoicePanel({
   onToggleDeafen: () => void;
   onTogglePushToTalk: () => void;
   onOutputVolumeChange: (value: number) => void;
+  isScreenSharing: boolean;
+  onToggleScreenShare: () => void;
+  remoteVideoStreams: Record<string, MediaStream>;
 }) {
   const [isListeningKey, setIsListeningKey] = useState(false);
 
@@ -106,13 +186,31 @@ export function VoicePanel({
         <button
           onClick={onToggleJoin}
           className={clsx(
-            "flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 font-semibold uppercase tracking-[0.1em] transition hover:brightness-105",
+            "flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition hover:brightness-105",
             joined ? "bg-sea text-ink" : "bg-ember text-white"
           )}
         >
           <Mic size={16} />
-          {connecting ? "Connecting" : joined ? "Leave Voice" : "Join Voice"}
+          {connecting ? "Connecting" : joined ? "Leave" : "Join Voice"}
         </button>
+        <button
+          onClick={onToggleScreenShare}
+          disabled={!joined}
+          className={clsx(
+            "flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] transition",
+            joined
+              ? isScreenSharing
+                ? "border-sea/20 bg-sea/10 text-sea"
+                : "border-white/10 bg-steel text-white/75 hover:bg-blade hover:text-white"
+              : "border-white/10 bg-steel text-white/30"
+          )}
+        >
+          {isScreenSharing ? <MonitorX size={16} /> : <MonitorUp size={16} />}
+          {isScreenSharing ? "Stop" : "Share"}
+        </button>
+      </div>
+
+      <div className="mb-5 flex gap-3">
         <button
           onClick={onToggleMute}
           disabled={!joined}
@@ -244,48 +342,12 @@ export function VoicePanel({
       <div className="space-y-3">
         {members.length ? (
           members.map((member) => (
-            <div
+            <VoiceMemberRow
               key={member.id}
-              className="flex items-center justify-between rounded-2xl border border-white/10 bg-steel px-3 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={clsx(
-                    "relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm transition",
-                    speakingUserIds.includes(member.id) &&
-                      "ring-2 ring-sea/80 shadow-[0_0_22px_rgba(123,246,255,0.35)]"
-                  )}
-                >
-                  {member.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={member.avatarUrl} alt={member.name} className="h-full w-full rounded-2xl object-cover" />
-                  ) : (
-                    member.name.slice(0, 2).toUpperCase()
-                  )}
-                  <span
-                    className={clsx(
-                      "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-panel",
-                      speakingUserIds.includes(member.id)
-                        ? "bg-sea"
-                        : member.status === "online"
-                          ? "bg-sea"
-                          : member.status === "idle"
-                            ? "bg-amber-300"
-                            : "bg-ember"
-                    )}
-                  />
-                </div>
-                <div>
-                  <p className="font-medium">{member.name}</p>
-                  <p className="text-sm text-white/45">
-                    {speakingUserIds.includes(member.id) ? "Speaking now" : member.role}
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs uppercase tracking-[0.24em] text-white/35">
-                {member.status}
-              </span>
-            </div>
+              member={member}
+              isSpeaking={speakingUserIds.includes(member.id)}
+              videoStream={remoteVideoStreams[member.id]}
+            />
           ))
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-5 text-sm text-white/45">

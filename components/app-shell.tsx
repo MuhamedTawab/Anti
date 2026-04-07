@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel, User } from "@supabase/supabase-js";
+import { Mic, MicOff, Headphones, PhoneOff, Volume2 } from "lucide-react";
+import clsx from "clsx";
 
 import { ChannelList } from "@/components/channel-list";
 import { ChatPanel } from "@/components/chat-panel";
@@ -191,7 +193,10 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
     leaveVoiceRoom,
     handleVoiceToggle,
     pushToTalkKey,
-    setPushToTalkKey
+    setPushToTalkKey,
+    isScreenSharing,
+    handleScreenShareToggle,
+    remoteVideoStreams
   } = useVoiceRoom(supabase, currentUser, activeServerId, playUiSound, getAudioContext, setError, async (payload, channel) => {
     await channel?.send({ type: "broadcast", event: "signal", payload });
   });
@@ -1037,6 +1042,9 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           participants={activeMembers.length}
           pushToTalkKey={pushToTalkKey}
           onPushToTalkKeyChange={setPushToTalkKey}
+          isScreenSharing={isScreenSharing}
+          onToggleScreenShare={handleScreenShareToggle}
+          remoteVideoStreams={remoteVideoStreams}
           onToggleJoin={() => handleVoiceToggle(activeVoiceChannel?.id ?? null)}
           onToggleMute={() => setIsMuted(p => !p)}
           onToggleDeafen={() => setIsDeafened(p => !p)}
@@ -1081,6 +1089,38 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
         onConfirm={handleJoinInvite}
         onCancel={() => setJoinInviteModalOpen(false)}
       />
+
+      {joinedVoiceRoomId && activeVoiceChannel?.id !== joinedVoiceRoomId && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-[24px] border border-sea/20 bg-[#090b12]/95 p-3 pr-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur transition-all animate-in slide-in-from-bottom-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sea/10">
+            <Volume2 size={18} className="text-sea animate-pulse" />
+          </div>
+          <div className="mr-2 pr-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">Voice Active</p>
+            <p className="text-xs text-white/50">Return to channel to view</p>
+          </div>
+          <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+            <button
+              onClick={() => setIsMuted(p => !p)}
+              className={clsx("rounded-xl p-2 transition", isMuted ? "bg-ember/20 text-ember" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white")}
+            >
+              {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+            <button
+              onClick={() => setIsDeafened(p => !p)}
+              className={clsx("rounded-xl p-2 transition", isDeafened ? "bg-ember/20 text-ember" : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white")}
+            >
+              <Headphones size={16} />
+            </button>
+            <button
+              onClick={() => leaveVoiceRoom()}
+              className="rounded-xl bg-ember/20 p-2 text-ember hover:bg-ember hover:text-white transition"
+            >
+              <PhoneOff size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
