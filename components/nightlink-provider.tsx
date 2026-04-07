@@ -90,7 +90,7 @@ export function NightlinkProvider({
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [activeInviteCode, setActiveInviteCode] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"channel" | "dm" | "profile">("channel");
-  const [activeSocialTab, setActiveSocialTab] = useState<"friends" | "pending" | "blocked" | "profile">("friends");
+  const [activeSocialTab, setActiveSocialTab] = useState<"signals" | "friends" | "pending">("signals");
   const [isSending, setIsSending] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false);
