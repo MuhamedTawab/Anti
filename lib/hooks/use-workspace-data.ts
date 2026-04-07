@@ -149,7 +149,11 @@ export function useWorkspaceData(
       .then((resp) => resp.json() as Promise<BootstrapPayload>)
       .then((nextData) => {
         if (!cancelled) {
-          setData(nextData);
+          setData(prev => ({
+            ...nextData,
+            // V15.3: Persistent Vault - Keep the cached messages we hydrated on boot
+            messages: { ...prev.messages, ...(nextData.messages || {}) }
+          }));
         }
       })
       .catch(() => null);
