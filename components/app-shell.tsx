@@ -209,6 +209,38 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   const onlineFriendIds = Object.keys(presenceMembers);
   const activeTypingMembers = Object.values(typingMembers).filter((m) => m.channelId === activeChatKey && m.expiresAt > Date.now()).map((m) => m.name);
 
+  // Unread counts — purely client-side, no polling or API calls.
+  // We store the last-seen message count per channel in a ref, and
+  // the delta becomes the unread badge shown in the sidebar.
+  const seenCountRef = useRef<Record<string, number>>({});
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    // Reset unread for the channel the user is currently viewing
+    if (!activeChatKey) return;
+    seenCountRef.current[activeChatKey] = (data.messages[activeChatKey] ?? []).length;
+    setUnreadCounts((prev) => ({ ...prev, [activeChatKey]: 0 }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChatKey]);
+
+  useEffect(() => {
+    // For every channel except the active one, compute how many new
+    // messages arrived since the user last viewed it.
+    const next: Record<string, number> = {};
+    for (const [channelId, messages] of Object.entries(data.messages)) {
+      if (channelId === activeChatKey) continue;
+      const seen = seenCountRef.current[channelId] ?? messages.length;
+      const newCount = Math.max(0, messages.length - seen);
+      if (newCount > 0) {
+        next[channelId] = newCount;
+      }
+    }
+    if (Object.keys(next).length > 0) {
+      setUnreadCounts((prev) => ({ ...prev, ...next }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.messages]);
+
   async function handleServerSelect(serverId: string) {
     const nextServer =
       data.servers.find((server) => server.id === serverId) ?? (data.servers[0] ?? null);
@@ -967,6 +999,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           onSelect={handleServerSelect}
           onCreate={() => setCreateServerModalOpen(true)}
           onJoin={() => setJoinInviteModalOpen(true)}
+          unreadCounts={unreadCounts}
         />
         <ChannelList
           server={activeServer}
@@ -976,6 +1009,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
           currentUserId={currentUser.id}
           inviteCode={activeInviteCode}
           canManageServer={activeServer.role === "owner"}
+          unreadCounts={unreadCounts}
           onTextSelect={handleTextChannelSelect}
           onVoiceSelect={handleVoiceChannelSelect}
           onCreateInvite={handleCreateInvite}
@@ -1029,6 +1063,7 @@ export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
             friendEmail={friendEmail}
             activeThreadId={activeThreadId}
             onlineFriendIds={onlineFriendIds}
+            unreadCounts={unreadCounts}
             onFriendEmailChange={setFriendEmail}
             onSendRequest={handleSendFriendRequest}
             onRespondRequest={handleRespondFriendRequest}

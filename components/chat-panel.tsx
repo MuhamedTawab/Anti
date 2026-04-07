@@ -1,4 +1,5 @@
-import { Bell, Link2, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Bell, Copy, Link2, Paperclip, Search, SendHorizontal, Trash2, X } from "lucide-react";
 
 import type { Message } from "@/lib/types";
 
@@ -33,8 +34,36 @@ export function ChatPanel({
   onSend: () => void;
   onDeleteMessage: (messageId: string) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevLengthRef = useRef(items.length);
+
+  // Only scroll when new messages are added AND user is already near the bottom
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    if (items.length <= prevLengthRef.current) {
+      prevLengthRef.current = items.length;
+      return;
+    }
+    prevLengthRef.current = items.length;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom < 200) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [items.length]);
+
+  // Scroll to bottom when switching channels
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
+    prevLengthRef.current = items.length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelName]);
+
   return (
-    <section className="flex h-[60vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[72vh]">
+    <section className="flex h-[75vh] min-w-0 flex-1 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-panel/90 shadow-panel backdrop-blur md:h-[85vh]">
       <header className="flex items-center justify-between border-b border-white/10 px-6 py-5">
         <div>
           <p className="font-display text-2xl uppercase tracking-[0.08em]">
@@ -53,12 +82,12 @@ export function ChatPanel({
         </div>
       </header>
 
-      <div className="chat-scroll flex-1 min-h-0 space-y-5 overflow-y-auto px-6 py-6">
+      <div ref={scrollRef} className="chat-scroll flex-1 min-h-0 space-y-5 overflow-y-auto px-6 py-6">
         {items.map((message) => (
           <article
             key={message.id}
-            className={`flex gap-4 rounded-[26px] border border-white/8 p-4 ${
-              message.optimistic ? "bg-ember/10 opacity-80" : "bg-black/20"
+            className={`group relative flex gap-4 rounded-[26px] border border-transparent p-4 transition-colors hover:border-white/8 hover:bg-black/20 ${
+              message.optimistic ? "opacity-70" : ""
             }`}
           >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-ember to-sea font-display text-sm font-bold text-ink">
@@ -107,15 +136,25 @@ export function ChatPanel({
                 </div>
               ) : null}
             </div>
-            {message.canModerate ? (
+            {/* Hover action buttons — appear on the right */}
+            <div className="absolute right-4 top-3 flex items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
               <button
-                onClick={() => onDeleteMessage(message.id)}
-                className="rounded-2xl border border-white/10 bg-black/15 p-3 text-white/40 transition hover:border-ember/30 hover:text-ember"
-                title="Delete message"
+                onClick={() => navigator.clipboard.writeText(message.body)}
+                className="rounded-xl border border-white/10 bg-panel/90 p-2 text-white/40 backdrop-blur transition hover:border-sea/40 hover:text-sea"
+                title="Copy message"
               >
-                <Trash2 size={14} />
+                <Copy size={13} />
               </button>
-            ) : null}
+              {message.canModerate ? (
+                <button
+                  onClick={() => onDeleteMessage(message.id)}
+                  className="rounded-xl border border-white/10 bg-panel/90 p-2 text-white/40 backdrop-blur transition hover:border-ember/40 hover:text-ember"
+                  title="Delete message"
+                >
+                  <Trash2 size={13} />
+                </button>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

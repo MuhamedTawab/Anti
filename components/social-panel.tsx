@@ -15,7 +15,8 @@ export function SocialPanel({
   onFriendEmailChange,
   onSendRequest,
   onRespondRequest,
-  onOpenThread
+  onOpenThread,
+  unreadCounts
 }: {
   friends: Friend[];
   incomingRequests: FriendRequest[];
@@ -28,7 +29,9 @@ export function SocialPanel({
   onSendRequest: () => void;
   onRespondRequest: (requestId: string, action: "accept" | "decline") => void;
   onOpenThread: (threadId: string) => void;
+  unreadCounts?: Record<string, number>;
 }) {
+  const unreadCountsMap = unreadCounts ?? {};
   return (
     <div className="mt-6 space-y-4">
       <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
@@ -154,7 +157,13 @@ export function SocialPanel({
                 <p className="text-sm font-medium">{thread.friendName}</p>
                 <p className="mt-1 text-xs text-white/40">{thread.lastMessage ?? "No messages yet"}</p>
               </div>
-              <Send size={14} />
+              {unreadCountsMap[thread.id] > 0 ? (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-ember px-1.5 text-[10px] font-bold text-white">
+                  {unreadCountsMap[thread.id] > 99 ? "99+" : unreadCountsMap[thread.id]}
+                </span>
+              ) : (
+                <Send size={14} />
+              )}
             </button>
           ))
         ) : (

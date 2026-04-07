@@ -6,10 +6,12 @@ import type { Channel, Member, Server } from "@/lib/types";
 function ChannelRow({
   channel,
   active,
+  unreadCount = 0,
   onClick
 }: {
   channel: Channel;
   active: boolean;
+  unreadCount?: number;
   onClick: (channelId: string) => void;
 }) {
   const Icon = channel.kind === "voice" ? Headphones : Hash;
@@ -28,9 +30,9 @@ function ChannelRow({
         <Icon size={16} />
         <span>{channel.name}</span>
       </span>
-      {channel.kind === "text" && channel.unread ? (
+      {channel.kind === "text" && unreadCount > 0 ? (
         <span className="rounded-full bg-ember px-2 py-0.5 text-xs font-bold text-white">
-          {channel.unread}
+          {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       ) : null}
       {channel.kind === "voice" && channel.members ? (
@@ -48,6 +50,7 @@ export function ChannelList({
   currentUserId,
   inviteCode,
   canManageServer,
+  unreadCounts = {},
   onTextSelect,
   onVoiceSelect,
   onCreateInvite,
@@ -60,6 +63,7 @@ export function ChannelList({
   currentUserId: string;
   inviteCode: string | null;
   canManageServer: boolean;
+  unreadCounts?: Record<string, number>;
   onTextSelect: (channelId: string) => void;
   onVoiceSelect: (channelId: string) => void;
   onCreateInvite: () => void;
@@ -113,6 +117,7 @@ export function ChannelList({
             key={channel.id}
             channel={channel}
             active={channel.id === activeChannelId}
+            unreadCount={unreadCounts[channel.id] ?? 0}
             onClick={onTextSelect}
           />
         ))}

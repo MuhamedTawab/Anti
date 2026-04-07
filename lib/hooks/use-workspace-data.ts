@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthIdentity, BootstrapPayload, SocialPayload } from "@/lib/types";
 
 function getInitialServer(data: BootstrapPayload) {
