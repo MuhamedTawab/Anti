@@ -209,6 +209,37 @@ export function ChannelList() {
           </div>
         )}
 
+        {/* Persistent Voice Status Bar */}
+        {joinedVoiceRoomId && (
+          <div className="mx-2 mb-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col gap-2 rounded-2xl border border-[#23a559]/20 bg-[#23a559]/5 p-3 backdrop-blur-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="relative flex-shrink-0">
+                    <div className="h-2 w-2 rounded-full bg-[#23a559]" />
+                    <div className="absolute inset-0 rounded-full bg-[#23a559] animate-ping opacity-50" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[#23a559] truncate leading-none mb-0.5">
+                      {voiceConnectionStatus === 'connected' ? 'Live Connection' : 'Voice Signal Active'}
+                    </span>
+                    <span className="text-[9px] font-bold text-white/60 truncate uppercase tracking-tighter">
+                      Active Session Active
+                    </span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleVoiceToggle(joinedVoiceRoomId)}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#da373c]/10 text-[#da373c] hover:bg-[#da373c] hover:text-white transition-all shadow-lg shadow-black/20"
+                  title="Disconnect"
+                >
+                  <PhoneOff size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* User Footer */}
         <div className="mt-auto p-4 border-t border-white/5 bg-[#080809]">
           <div className="flex items-center gap-3 px-1">
