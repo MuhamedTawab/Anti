@@ -259,7 +259,6 @@ export function NightlinkProvider({
     if (!nextServer) return;
     const nextTextChannel = getInitialTextChannel(nextServer);
     const nextVoiceChannel = nextServer.channels.find((c) => c.kind === "voice")?.id ?? "";
-    if (joinedVoiceRoomId) await leaveVoiceRoom(nextServer.id);
     setActiveServerId(nextServer.id);
     setActiveTextChannelId(nextTextChannel.id);
     setActiveVoiceChannelId(nextVoiceChannel);
@@ -400,19 +399,10 @@ export function NightlinkProvider({
   }, [setActiveTextChannelId, setActiveThreadId, setViewMode, loadChannelMessages]);
 
   async function handleVoiceChannelSelect(channelId: string) {
-    if (joinedVoiceRoomId && globalChannelRef.current && currentUser) {
-      void globalChannelRef.current.send({
-        type: 'broadcast',
-        event: 'voice_presence',
-        payload: { userId: currentUser.id, action: 'leave' }
-      });
-    }
-
-    if (joinedVoiceRoomId) await leaveVoiceRoom();
     setActiveVoiceChannelId(channelId);
     setError(null);
 
-    // V18: Broadcast Join
+    // V18: Broadcast Join (Now purely for discovery/UI state while browsing)
     const server = activeServer;
     const channel = server?.channels.find(c => c.id === channelId);
     if (globalChannelRef.current && currentUser && server && channel) {
