@@ -43,11 +43,19 @@ export function VoiceMemberRow({
         <div className="flex items-center gap-3">
           <div
             className={clsx(
-              "relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm transition",
-              isSpeaking &&
-                "ring-2 ring-[#ff3b5f]/80 shadow-[0_0_22px_rgba(255,59,95,0.35)]"
+              "relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20 font-display text-sm transition-all duration-300",
+              isSpeaking && "ring-2 ring-[#ff3b5f]/80 shadow-[0_0_22px_rgba(255,59,95,0.4)] scale-105"
             )}
           >
+            {/* Kinetic Aura Pulse Rings */}
+            {isSpeaking && (
+              <>
+                <div className="absolute inset-0 rounded-2xl ring-4 ring-[#ff3b5f]/40 animate-[ping_1.5s_infinite]" />
+                <div className="absolute inset-0 rounded-2xl ring-8 ring-[#ff3b5f]/20 animate-[ping_2s_infinite] delay-300" />
+                <div className="absolute inset-x-0 -bottom-1 h-3 bg-gradient-to-t from-[#ff3b5f]/20 to-transparent blur-md animate-pulse" />
+              </>
+            )}
+
             {member.avatarUrl ? (
               <img src={member.avatarUrl} alt={member.name} className="h-full w-full rounded-2xl object-cover" />
             ) : (
@@ -55,9 +63,9 @@ export function VoiceMemberRow({
             )}
             <span
               className={clsx(
-                "absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-black/40",
+                "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#111214] z-10",
                 isSpeaking
-                  ? "bg-[#ff3b5f]"
+                  ? "bg-[#ff3b5f] shadow-[0_0_8px_#ff3b5f]"
                   : member.status === "online"
                     ? "bg-[#23a559]"
                     : member.status === "idle"
@@ -200,15 +208,54 @@ export function VoicePanel() {
           </div>
         </div>
 
-        {/* Level Bars */}
-        <div className="mb-4 flex items-end justify-center gap-[3px] h-10 px-6">
-           {signalLevels.map((lvl, i) => (
+        {/* Level Bars (Interactive Warp EQ) */}
+        <div 
+          className="relative mb-6 flex items-end justify-center gap-[3px] h-12 px-6 group cursor-ew-resize pt-4"
+          onMouseDown={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const setVol = (clientX: number) => {
+              const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+              setOutputVolume(x / rect.width);
+            };
+            setVol(e.clientX);
+            
+            const onMouseMove = (ev: MouseEvent) => setVol(ev.clientX);
+            const onMouseUp = () => {
+              window.removeEventListener('mousemove', onMouseMove);
+              window.removeEventListener('mouseup', onMouseUp);
+            };
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+          }}
+        >
+           {/* EQ Backdrop Track */}
+           <div className="absolute inset-x-6 bottom-0 h-1 bg-white/5 rounded-full overflow-hidden">
              <div 
-               key={i} 
-               className="w-1 rounded-full bg-gradient-to-t from-[#ff3b5f] to-[#ff8a5b] transition-all duration-75"
-               style={{ height: `${lvl}%`, opacity: connectionStatus === 'connected' ? 1 : 0.1 }}
+               className="h-full bg-gradient-to-r from-[#ff3b5f] to-[#ff8a5b] transition-all duration-200" 
+               style={{ width: `${outputVolume * 100}%` }}
              />
-           ))}
+           </div>
+
+           {signalLevels.map((lvl, i) => {
+             const barPos = i / (signalLevels.length - 1);
+             const isActiveBar = barPos <= outputVolume;
+             return (
+               <div 
+                 key={i} 
+                 className={clsx(
+                   "w-1 rounded-full transition-all duration-75",
+                   isActiveBar 
+                    ? "bg-gradient-to-t from-[#ff3b5f] to-[#ff8a5b]" 
+                    : "bg-white/10"
+                 )}
+                 style={{ 
+                   height: `${lvl}%`, 
+                   opacity: connectionStatus === 'connected' ? (isActiveBar ? 1 : 0.3) : 0.1,
+                   boxShadow: (isActiveBar && (lvl > 60)) ? '0 0 12px rgba(255,59,95,0.4)' : 'none'
+                 }}
+               />
+             );
+           })}
         </div>
 
         {/* Controls Layout */}
@@ -303,19 +350,6 @@ export function VoicePanel() {
             </button>
           </div>
 
-          {/* Volume Slider */}
-          <div className="mt-1 flex items-center gap-3 rounded-xl bg-black/20 p-2.5">
-            <Volume2 size={14} className="text-[#9da0a7] shrink-0" />
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={outputVolume}
-              onChange={(e) => setOutputVolume(parseFloat(e.target.value))}
-              className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[#ff3b5f] hover:accent-[#ff8a5b]"
-            />
-          </div>
         </div>
       </div>
     </div>

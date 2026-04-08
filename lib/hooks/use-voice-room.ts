@@ -169,7 +169,7 @@ export function useVoiceRoom(
       total += Math.abs(value - 128);
     }
 
-    return Math.min(1, total / data.length / 36);
+    return Math.min(1, total / data.length / 24);
   }
 
   function attachAnalyser(stream: MediaStream, key: string) {
@@ -896,9 +896,9 @@ export function useVoiceRoom(
         setSignalLevels(
           idleLevels.map((base, index) => {
             const wave = (Math.sin(activeWave + index * 0.72) + 1) / 2;
-            const emphasis = index % 3 === 0 ? 1.16 : index % 2 === 0 ? 0.94 : 0.82;
-            const height = base + wave * 10 + nextRoomLevel * 54 * emphasis;
-            return Math.max(10, Math.min(82, Math.round(height)));
+            const emphasis = index % 3 === 0 ? 1.25 : index % 2 === 0 ? 1.0 : 0.85;
+            const height = base + wave * 8 + nextRoomLevel * 64 * emphasis;
+            return Math.max(10, Math.min(94, Math.round(height)));
           })
         );
       }
