@@ -17,10 +17,11 @@ import {
   PhoneOff,
   Star,
   MonitorDown,
-  ExternalLink
+  ExternalLink,
+  Flame
 } from "lucide-react";
 
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 import type { Channel } from "@/lib/types";
 import { VoiceBar } from "./voice-bar";
 
@@ -88,7 +89,7 @@ export function ChannelList() {
     joinedVoiceRoomId,
     voiceConnectionStatus,
     handleVoiceToggle
-  } = useNightlink();
+  } = useBlaze();
 
   if (!server) {
     return (
@@ -344,7 +345,7 @@ export function ChannelList() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ff3b5f]/20 text-[#ff3b5f]">
                 <MonitorDown size={14} />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Nightlink Pro</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Blaze Pro</span>
             </div>
             <p className="text-[9px] font-medium leading-relaxed text-[#9da0a7]">
               Get the Desktop app for <span className="text-white">Global Push-to-Talk</span> while gaming.

@@ -90,14 +90,14 @@ export function useVoiceRoom(
   const [isRecordingPTT, setIsRecordingPTT] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("nightlink_ptt_key");
+    const saved = localStorage.getItem("blaze_ptt_key");
     if (saved) {
       setPushToTalkKeyState(saved);
     }
   }, []);
 
   const setPushToTalkKey = useCallback((key: string) => {
-    localStorage.setItem("nightlink_ptt_key", key);
+    localStorage.setItem("blaze_ptt_key", key);
     setPushToTalkKeyState(key);
   }, []);
   const [voiceConnectionStatus, setVoiceConnectionStatus] = useState<
@@ -744,9 +744,9 @@ export function useVoiceRoom(
     // Tell the OS we are an interactive communication tab
     navigator.mediaSession.playbackState = 'playing';
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: 'Nightlink Voice Call',
+      title: 'Blaze Voice Call',
       artist: 'Active Communication',
-      album: 'Nightlink Platform',
+      album: 'Blaze Platform',
       artwork: [
         { src: '/logo.png', sizes: '512x512', type: 'image/png' }
       ]
@@ -789,7 +789,7 @@ export function useVoiceRoom(
     }
 
     const channel = supabase
-      .channel(`nightlink-voice:${joinedVoiceRoomId}`)
+      .channel(`blaze-voice:${joinedVoiceRoomId}`)
       .on("broadcast", { event: "join" }, async (payload) => {
         const next = payload.payload as { userId?: string };
         if (!next.userId || next.userId === currentUser.id) return;

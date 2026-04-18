@@ -17,7 +17,7 @@ import {
   PhoneOff
 } from "lucide-react";
 
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 import type { Member } from "@/lib/types";
 
 export function VoiceMemberRow({
@@ -133,8 +133,22 @@ export function VoicePanel() {
     setPushToTalkKey,
     isRecordingPTT,
     setIsRecordingPTT,
-    sendReaction
-  } = useNightlink();
+    sendReaction,
+    currentUser, 
+    accessToken, 
+    authLoading, 
+    authMessage, 
+    setAuthMessage, 
+    handleSaveProfile, 
+    profileName, 
+    profileHandle, 
+    profileAvatarUrl, 
+    profileBio, 
+    handleProfileNameChange, 
+    handleProfileHandleChange, 
+    handleProfileAvatarUrlChange, 
+    handleProfileBioChange 
+  } = useBlaze();
 
   const joined = !!joinedVoiceRoomId;
   const roomName = activeVoiceChannel?.name ?? "Voice";

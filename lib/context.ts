@@ -9,7 +9,7 @@ import type {
   Member 
 } from "./types";
 
-export interface NightlinkContextType {
+export interface BlazeContextType {
   // Auth state
   currentUser: AuthIdentity | null;
   accessToken: string | null;
@@ -47,6 +47,7 @@ export interface NightlinkContextType {
   activeThread: any | null; // DirectThread
   activeChatKey: string;
   displayedMessages: Message[];
+  activeMessages: Message[];
   activeMembers: Member[];
   onlineMembers: Member[];
   onlineFriendIds: string[];
@@ -135,12 +136,12 @@ export interface NightlinkContextType {
   sendReaction: (emoji: string) => void;
 }
 
-export const NightlinkContext = createContext<NightlinkContextType | null>(null);
+export const BlazeContext = createContext<BlazeContextType | null>(null);
 
-export function useNightlink() {
-  const context = useContext(NightlinkContext);
+export function useBlaze() {
+  const context = useContext(BlazeContext);
   if (!context) {
-    throw new Error("useNightlink must be used within a NightlinkProvider");
+    throw new Error("useBlaze must be used within a BlazeProvider");
   }
   return context;
 }

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export function AuthPanel() {
@@ -35,7 +35,7 @@ export function AuthPanel() {
     handleProfileBioChange,
     handleSaveProfile,
     getAuthHeaders // If needed for logout
-  } = useNightlink();
+  } = useBlaze();
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
@@ -67,7 +67,7 @@ export function AuthPanel() {
             </div>
             <h2 className="text-2xl font-black tracking-tight text-white uppercase">Identity Required</h2>
             <p className="text-sm text-[#9da0a7] font-medium leading-relaxed">
-              To join the Nightlink network, you must authenticate through a verified provider.
+              To join the Blaze network, you must authenticate through a verified provider.
             </p>
           </div>
 

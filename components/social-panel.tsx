@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 import { ChatPanel } from "./chat-panel";
 import { AuthPanel } from "./auth-panel";
 
@@ -33,7 +33,7 @@ export function SocialPanel() {
     activeThread,
     setViewMode,
     authLoading
-  } = useNightlink();
+  } = useBlaze();
 
   const { friends, incomingRequests, outgoingRequests } = socialData;
 
@@ -75,7 +75,7 @@ export function SocialPanel() {
                       <MailPlus size={24} className="text-[#ff3b5f]" />
                       Expand Your Network
                     </h3>
-                    <p className="mt-1 text-sm text-[#9da0a7]">Invite friends to Nightlink by their email address.</p>
+                    <p className="mt-1 text-sm text-[#9da0a7]">Invite friends to Blaze by their email address.</p>
                   </div>
                   <ShieldIcon size={20} className="text-[#9da0a7] opacity-20" />
                 </div>

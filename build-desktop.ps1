@@ -1,8 +1,8 @@
-# Nightlink Desktop Build Helper
-# This script helps you build the Windows installer (.exe) for Nightlink.
+# Blaze Desktop Build Helper
+# This script helps you build the Windows installer (.exe) for Blaze.
 
 try {
-    Write-Host "--- Nightlink Desktop Builder ---" -ForegroundColor Cyan
+    Write-Host "--- Blaze Desktop Builder ---" -ForegroundColor Cyan
     Write-Host "Verifying environment..."
 
     # 1. Check for Rust
@@ -20,10 +20,10 @@ try {
     Write-Host "Installing dependencies..."
     npm install
 
-    Write-Host "Building Nightlink Web..."
+    Write-Host "Building Blaze Web..."
     npm run build
 
-    Write-Host "Building Nightlink Desktop App..."
+    Write-Host "Building Blaze Desktop App..."
     npx tauri build
 
     Write-Host "--------------------------------" -ForegroundColor Green

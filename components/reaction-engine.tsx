@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 
 interface Particle {
   id: string;
@@ -17,7 +17,7 @@ interface Particle {
 }
 
 export function ReactionEngine() {
-  const { activeReactions } = useNightlink();
+  const { activeReactions } = useBlaze();
   const [particles, setParticles] = useState<Particle[]>([]);
   const lastProcessedId = useRef<Set<string>>(new Set<string>());
   const requestRef = useRef<number>(undefined);

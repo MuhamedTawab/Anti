@@ -30,7 +30,7 @@ export function usePresence(
       return;
     }
 
-    const channel = supabase.channel("nightlink-presence", {
+    const channel = supabase.channel("blaze-presence", {
       config: {
         presence: {
           key: currentUser.id

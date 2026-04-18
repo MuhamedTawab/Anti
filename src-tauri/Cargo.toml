@@ -1,8 +1,8 @@
 [package]
-name = "nightlink-desktop"
+name = "blaze-desktop"
 version = "1.0.0"
-description = "Native desktop wrapper for Nightlink"
-authors = ["Nightlink Team"]
+description = "Native desktop wrapper for Blaze"
+authors = ["Blaze Team"]
 edition = "2021"
 
 [build-dependencies]

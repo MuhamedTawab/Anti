@@ -20,7 +20,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import clsx from "clsx";
 
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 import type { Message } from "@/lib/types";
 
 export function ChatPanel({
@@ -50,7 +50,7 @@ export function ChatPanel({
     setAttachmentOpen: onToggleAttachment,
     activeTypingMembers: typingMembers,
     sendReaction
-  } = useNightlink();
+  } = useBlaze();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevLengthRef = useRef(items.length);

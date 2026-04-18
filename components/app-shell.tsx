@@ -10,15 +10,15 @@ import { ServerRail } from "@/components/server-rail";
 import { VoicePanel } from "@/components/voice-panel";
 import { AuthPanel } from "@/components/auth-panel";
 import { SocialPanel } from "@/components/social-panel";
-import { useNightlink } from "@/lib/context";
-import { NightlinkProvider } from "@/components/nightlink-provider";
+import { useBlaze } from "@/lib/context";
+import { BlazeProvider } from "@/components/blaze-provider";
 import type { BootstrapPayload } from "@/lib/types";
 
 export function AppShell({ initialData }: { initialData: BootstrapPayload }) {
   return (
-    <NightlinkProvider initialData={initialData}>
+    <BlazeProvider initialData={initialData}>
       <AppLayout />
-    </NightlinkProvider>
+    </BlazeProvider>
   );
 }
 
@@ -57,7 +57,7 @@ function AppLayout() {
     activeTextChannel,
     activeVoiceChannel,
     handleModerateMember
-  } = useNightlink();
+  } = useBlaze();
 
   if (!currentUser) {
     return (
@@ -65,7 +65,7 @@ function AppLayout() {
         <div className="w-full max-w-md space-y-8 px-4">
           <div className="text-center">
             <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-[#ff3b5f] to-[#ff8a5b] bg-clip-text text-transparent">
-              Nightlink
+              Blaze
             </h1>
             <p className="mt-2 text-sm text-[#9da0a7]">
               Join the conversation.

@@ -7,8 +7,8 @@ function getInitialServer(data: BootstrapPayload) {
   return (
     data.servers[0] ?? {
       id: "empty",
-      name: "Nightlink",
-      initials: "NL",
+      name: "Blaze",
+      initials: "BL",
       accent: "from-[#ff3b5f] to-[#ff8a5b]",
       channels: []
     }
@@ -75,7 +75,7 @@ export function useWorkspaceData(
   // V15.1: Zero-Latency - Inline Hydration (True Pulse)
   const [data, setData] = useState<BootstrapPayload>(() => {
     if (typeof window === 'undefined') return initialData;
-    const cached = localStorage.getItem('nightlink_cache_v1');
+    const cached = localStorage.getItem('blaze_cache_v1');
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as { data: BootstrapPayload; social: SocialPayload };
@@ -100,7 +100,7 @@ export function useWorkspaceData(
   const [socialData, setSocialData] = useState<SocialPayload>(() => {
     const defaultSocial = { friends: [], incomingRequests: [], outgoingRequests: [], directThreads: [] };
     if (typeof window === 'undefined') return defaultSocial;
-    const cached = localStorage.getItem('nightlink_cache_v1');
+    const cached = localStorage.getItem('blaze_cache_v1');
     if (cached) {
       try {
         const parsed = JSON.parse(cached) as { social: SocialPayload };
@@ -135,7 +135,7 @@ export function useWorkspaceData(
          data: { ...data, messages: slicedMessages },
          social: socialData
        };
-       localStorage.setItem('nightlink_cache_v1', JSON.stringify(snapshot));
+       localStorage.setItem('blaze_cache_v1', JSON.stringify(snapshot));
     }, 2000); // 2s debounce for performance
 
     return () => clearTimeout(timer);

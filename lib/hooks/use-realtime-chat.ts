@@ -43,7 +43,7 @@ export function useRealtimeChat(
       return;
     }
 
-    const channel = supabase.channel(`nightlink-room:${activeChatKey}`);
+    const channel = supabase.channel(`blaze-room:${activeChatKey}`);
 
     if (viewMode === "channel") {
       channel.on(

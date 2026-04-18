@@ -20,7 +20,7 @@ import { useRealtimeChat } from "@/lib/hooks/use-realtime-chat";
 import { usePresence } from "@/lib/hooks/use-presence";
 import { useVoiceRoom } from "@/lib/hooks/use-voice-room";
 import { useUiSounds } from "@/lib/hooks/use-ui-sounds";
-import { NightlinkContext } from "@/lib/context";
+import { BlazeContext } from "@/lib/context";
 import type { 
   BootstrapPayload, 
   Message, 
@@ -75,7 +75,7 @@ function profileSnapshotKey(profile: AuthIdentity | null) {
   });
 }
 
-export function NightlinkProvider({ 
+export function BlazeProvider({ 
   initialData, 
   children 
 }: { 
@@ -727,7 +727,7 @@ export function NightlinkProvider({
     currentUser, accessToken, authLoading, authMessage, setAuthMessage, getAuthHeaders,
     data, setData, socialData, setSocialData,
     activeServerId, setActiveServerId, activeTextChannelId, setActiveTextChannelId, activeVoiceChannelId, setActiveVoiceChannelId, activeThreadId, setActiveThreadId, viewMode, setViewMode,
-    activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts,
+    activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts,
     error, setError, composerValue, setComposerValue, attachmentUrl, setAttachmentUrl, attachmentOpen, setAttachmentOpen, isSending, isPending, hasMore, isLoadingMore,
     joinedVoiceRoomId, isVoiceConnecting, isMuted, setIsMuted, isDeafened, setIsDeafened, isPushToTalk, setIsPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, setOutputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams,
     pushToTalkKey, setPushToTalkKey, isRecordingPTT, setIsRecordingPTT,
@@ -740,13 +740,13 @@ export function NightlinkProvider({
     activeReactions, sendReaction,
     playUiSound, getAudioContext, setPresenceMembers
   }), [
-    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, globalTyping, globalPresence, activeReactions, sendReaction, playUiSound, getAudioContext, setPresenceMembers
+    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, globalTyping, globalPresence, activeReactions, sendReaction, playUiSound, getAudioContext, setPresenceMembers
   ]);
 
   return (
-    <NightlinkContext.Provider value={value}>
+    <BlazeContext.Provider value={value}>
       {children}
       <ReactionEngine />
-    </NightlinkContext.Provider>
+    </BlazeContext.Provider>
   );
 }
