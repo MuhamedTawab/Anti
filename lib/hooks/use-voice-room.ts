@@ -50,7 +50,7 @@ export function useVoiceRoom(
   supabase: SupabaseClient | null,
   currentUser: AuthIdentity | null,
   activeServerId: string,
-  playUiSound: (kind: "error" | "leave" | "join") => void,
+  playUiSound: (kind: "error" | "leave" | "join" | "ptt_on" | "ptt_off") => void,
   getAudioContext: () => AudioContext | null,
   setError: (err: string | null) => void,
   sendVoiceSignal: (payload: Record<string, unknown>, channel: RealtimeChannel | null) => Promise<void>
@@ -661,12 +661,14 @@ export function useVoiceRoom(
       if (event.code !== pushToTalkKey || event.repeat || isTypingTarget(event.target)) return;
       event.preventDefault();
       setIsPushToTalkActive(true);
+      playUiSound("ptt_on");
     }
 
     function handleKeyUp(event: KeyboardEvent) {
       if (event.code !== pushToTalkKey) return;
       event.preventDefault();
       setIsPushToTalkActive(false);
+      playUiSound("ptt_off");
     }
 
     function handleBlur() {
@@ -675,6 +677,7 @@ export function useVoiceRoom(
       // but we add a small console log to help debug.
       if (isPushToTalkActive) {
         setIsPushToTalkActive(false);
+        playUiSound("ptt_off");
         console.log("[Voice] PTT released due to focus loss (Alt-Tab). Switch to Open Mic to talk in background.");
       }
     }
@@ -766,6 +769,7 @@ export function useVoiceRoom(
         if (!next.userId || next.userId === currentUser.id) return;
 
         const peer = createPeerConnection(next.userId);
+        playUiSound("join");
         
         // V6: Add ICE State monitoring to auto-restart on disconnect
         peer.oniceconnectionstatechange = () => {

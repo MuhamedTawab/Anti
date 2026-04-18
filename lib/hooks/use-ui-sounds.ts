@@ -5,7 +5,7 @@ import { useRef, useCallback } from "react";
 export function useUiSounds() {
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  const playUiSound = useCallback((kind: "send" | "receive" | "success" | "error" | "join" | "leave") => {
+  const playUiSound = useCallback((kind: "send" | "receive" | "success" | "error" | "join" | "leave" | "ptt_on" | "ptt_off") => {
     if (typeof window === "undefined") {
       return;
     }
@@ -52,6 +52,14 @@ export function useUiSounds() {
         { frequency: 880, duration: 0.05, volume: 0.014 },
         { frequency: 660, duration: 0.06, volume: 0.015 },
         { frequency: 440, duration: 0.08, volume: 0.018 }
+      ],
+      ptt_on: [
+        { frequency: 880, duration: 0.04, volume: 0.012 },
+        { frequency: 1100, duration: 0.05, volume: 0.01 }
+      ],
+      ptt_off: [
+        { frequency: 980, duration: 0.04, volume: 0.012 },
+        { frequency: 740, duration: 0.05, volume: 0.014 }
       ]
     };
 
