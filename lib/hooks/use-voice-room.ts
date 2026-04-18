@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { listen } from "@tauri-apps/api/event";
 import type { AuthIdentity } from "@/lib/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { voiceEngine } from "../voice-engine";
@@ -700,8 +699,9 @@ export function useVoiceRoom(
     
     async function setupTauriListener() {
       // @ts-ignore - Tauri defined in global scope for Desktop app
-      if (typeof window !== "undefined" && window.__TAURI_INTERNALS__) {
+      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
         try {
+          const { listen } = await import("@tauri-apps/api/event");
           unlisten = await listen<boolean>("global-ptt", (event) => {
             const isActive = event.payload;
             setIsPushToTalkActive(isActive);
