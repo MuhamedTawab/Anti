@@ -2,7 +2,7 @@
 
 import { Mic, MicOff, Headphones, PhoneOff, Radio } from "lucide-react";
 import clsx from "clsx";
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 
 export function VoiceBar() {
   const {
@@ -15,7 +15,7 @@ export function VoiceBar() {
     handleVoiceToggle,
     activeServer,
     data
-  } = useNightlink();
+  } = useBlaze();
 
   if (!joinedVoiceRoomId) return null;
 

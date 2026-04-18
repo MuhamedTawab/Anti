@@ -5,10 +5,17 @@ try {
     Write-Host "--- Blaze Desktop Builder ---" -ForegroundColor Cyan
     Write-Host "Verifying environment..."
 
-    # 1. Check for Rust
-    if (!(Get-Command cargo -ErrorAction SilentlyContinue)) {
-        Write-Host "Error: Rust/Cargo not found. Please install it from https://rustup.rs/" -ForegroundColor Red
-        throw "Missing Rust"
+    # 1. Check for Rust (with default path fallback)
+    $cargoPath = Get-Command cargo -ErrorAction SilentlyContinue
+    if (!$cargoPath) {
+        $defaultCargo = "$HOME\.cargo\bin\cargo.exe"
+        if (Test-Path $defaultCargo) {
+            $env:Path += ";$HOME\.cargo\bin"
+            Write-Host "Detected Rust in $HOME\.cargo\bin - Added to session Path." -ForegroundColor Yellow
+        } else {
+            Write-Host "Error: Rust/Cargo not found. Please install it from https://rustup.rs/" -ForegroundColor Red
+            throw "Missing Rust"
+        }
     }
 
     # 2. Check for NodeJS

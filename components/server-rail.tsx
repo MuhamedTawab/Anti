@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { Plus, Ticket, Users } from "lucide-react";
 
-import { useNightlink } from "@/lib/context";
+import { useBlaze } from "@/lib/context";
 
 export function ServerRail() {
   const {
@@ -14,7 +14,7 @@ export function ServerRail() {
     setCreateServerModalOpen,
     setJoinInviteModalOpen,
     unreadCounts = {}
-  } = useNightlink();
+  } = useBlaze();
 
   const items = data.servers;
 

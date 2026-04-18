@@ -1,6 +1,6 @@
-# Nightlink
+# Blaze
 
-Nightlink is a web-first community platform built around text chat and browser voice rooms.
+Blaze is a web-first community platform built around text chat and browser voice rooms.
 
 ## Current status
 
