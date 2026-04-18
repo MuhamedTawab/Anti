@@ -129,6 +129,10 @@ export interface NightlinkContextType {
   setActiveInviteCode: (code: string | null) => void;
   friendEmail: string;
   setFriendEmail: (email: string) => void;
+
+  // Kinetic Emoji Protocol
+  activeReactions: Array<{ id: string; emoji: string; userId: string; userName: string }>;
+  sendReaction: (emoji: string) => void;
 }
 
 export const NightlinkContext = createContext<NightlinkContextType | null>(null);

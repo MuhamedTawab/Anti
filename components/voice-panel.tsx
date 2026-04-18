@@ -132,7 +132,8 @@ export function VoicePanel() {
     pushToTalkKey,
     setPushToTalkKey,
     isRecordingPTT,
-    setIsRecordingPTT
+    setIsRecordingPTT,
+    sendReaction
   } = useNightlink();
 
   const joined = !!joinedVoiceRoomId;
@@ -185,6 +186,19 @@ export function VoicePanel() {
 
       {/* Connection & Controls Area */}
       <div className="mt-auto border-t border-white/5 bg-[#18191c]/80 p-4 backdrop-blur-md">
+        {/* Kinetic Energy Bar */}
+        <div className="mb-4 flex items-center justify-between gap-2 px-1">
+          {["🔥", "❤️", "😂", "😮", "🚀"].map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => sendReaction(emoji)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 text-lg transition-all hover:scale-125 hover:bg-white/10 active:scale-95 active:bg-[#ff3b5f]/20"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+
         {/* Connection Status Banner */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">

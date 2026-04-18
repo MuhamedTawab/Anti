@@ -30,6 +30,7 @@ import type {
   Server, 
   Member 
 } from "@/lib/types";
+import { ReactionEngine } from "./reaction-engine";
 
 function getInitialTextChannel(server: Server): Channel {
   return (
@@ -100,6 +101,7 @@ export function NightlinkProvider({
   // V18: Presence Intelligence State
   const [globalTyping, setGlobalTyping] = useState<Record<string, { channelId: string; expiresAt: number }>>({});
   const [globalPresence, setGlobalPresence] = useState<Record<string, { serverId: string; roomId: string; roomName: string } | null>>({});
+  const [activeReactions, setActiveReactions] = useState<Array<{ id: string; emoji: string; userId: string; userName: string }>>([]);
 
   const { playUiSound, getAudioContext } = useUiSounds();
 
@@ -246,6 +248,17 @@ export function NightlinkProvider({
         ...prev,
         [userId]: action === 'join' ? { serverId, roomId, roomName } : null
       }));
+    });
+
+    // Kinetic Emoji Protocol: Listen for reactions
+    channel.on('broadcast', { event: 'reaction' }, (payload) => {
+      const { id, emoji, userId, userName } = payload.payload;
+      setActiveReactions(prev => [...prev, { id, emoji, userId, userName }]);
+      
+      // Cleanup reaction after 4 seconds
+      setTimeout(() => {
+        setActiveReactions(prev => prev.filter(r => r.id !== id));
+      }, 4000);
     });
 
     channel.subscribe();
@@ -684,6 +697,32 @@ export function NightlinkProvider({
     }
   }
 
+  const sendReaction = useCallback((emoji: string) => {
+    if (!currentUser || !globalChannelRef.current) return;
+
+    const reaction = {
+      id: `reaction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      emoji,
+      userId: currentUser.id,
+      userName: currentUser.name
+    };
+
+    // Broadcast to others
+    void globalChannelRef.current.send({
+      type: 'broadcast',
+      event: 'reaction',
+      payload: reaction
+    });
+
+    // Add locally
+    setActiveReactions(prev => [...prev, reaction]);
+
+    // Cleanup locally after 4 seconds
+    setTimeout(() => {
+      setActiveReactions(prev => prev.filter(r => r.id !== reaction.id));
+    }, 4000);
+  }, [currentUser]);
+
   const value = useMemo(() => ({
     currentUser, accessToken, authLoading, authMessage, setAuthMessage, getAuthHeaders,
     data, setData, socialData, setSocialData,
@@ -698,14 +737,16 @@ export function NightlinkProvider({
     createServerModalOpen, setCreateServerModalOpen, joinInviteModalOpen, setJoinInviteModalOpen, activeInviteCode, setActiveInviteCode,
     friendEmail, setFriendEmail,
     globalTyping, globalPresence,
+    activeReactions, sendReaction,
     playUiSound, getAudioContext, setPresenceMembers
   }), [
-    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, globalTyping, globalPresence, playUiSound, getAudioContext, setPresenceMembers
+    currentUser, accessToken, authLoading, authMessage, data, socialData, activeServerId, activeTextChannelId, activeVoiceChannelId, activeThreadId, viewMode, activeServer, activeTextChannel, activeVoiceChannel, activeThread, activeChatKey, displayedMessages, activeMembers, onlineMembers, onlineFriendIds, activeTypingMembers, unreadCounts, error, composerValue, attachmentUrl, attachmentOpen, isSending, isPending, hasMore, isLoadingMore, joinedVoiceRoomId, isVoiceConnecting, isMuted, isDeafened, isPushToTalk, isPushToTalkActive, voiceConnectionStatus, outputVolume, signalLevels, participantLevels, isScreenSharing, remoteVideoStreams, pushToTalkKey, isRecordingPTT, handleSendMessage, handleLoadMore, handleComposerChange, handleTextChannelSelect, handleVoiceChannelSelect, handleServerSelect, handleHomeSelect, handleOpenThread, handleVoiceToggle, handleScreenShareToggle, handleCreateServer, handleJoinInvite, handleCreateInvite, handleDeleteServer, handleModerateMember, handleDeleteMessage, handleSendFriendRequest, handleRespondFriendRequest, profileName, profileHandle, profileAvatarUrl, profileBio, handleSaveProfile, createServerModalOpen, joinInviteModalOpen, activeInviteCode, friendEmail, globalTyping, globalPresence, activeReactions, sendReaction, playUiSound, getAudioContext, setPresenceMembers
   ]);
 
   return (
     <NightlinkContext.Provider value={value}>
       {children}
+      <ReactionEngine />
     </NightlinkContext.Provider>
   );
 }

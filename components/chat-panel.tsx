@@ -14,7 +14,8 @@ import {
   X,
   MoreVertical,
   ShieldAlert,
-  UserMinus
+  UserMinus,
+  Smile
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import clsx from "clsx";
@@ -47,7 +48,8 @@ export function ChatPanel({
     setAttachmentUrl: onAttachmentChange,
     attachmentOpen,
     setAttachmentOpen: onToggleAttachment,
-    activeTypingMembers: typingMembers
+    activeTypingMembers: typingMembers,
+    sendReaction
   } = useNightlink();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -371,6 +373,13 @@ export function ChatPanel({
               )}
             >
               <Paperclip size={18} />
+            </button>
+            <button 
+              onClick={() => sendReaction("🔥")}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/5 text-[#9da0a7] transition-all hover:scale-110 hover:bg-white/10 hover:text-[#ff8a5b] active:scale-90"
+              title="Send Reaction"
+            >
+              <Smile size={18} />
             </button>
             <input
               type="text"
