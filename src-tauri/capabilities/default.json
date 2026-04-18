@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-capability.json",
+  "identifier": "default",
+  "description": "Default permissions for the Nightlink Desktop app",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "global-shortcut:default",
+    "event:default"
+  ]
+}

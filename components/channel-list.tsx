@@ -14,7 +14,10 @@ import {
   LogOut,
   Search,
   Plus,
-  PhoneOff
+  PhoneOff,
+  Star,
+  MonitorDown,
+  ExternalLink
 } from "lucide-react";
 
 import { useNightlink } from "@/lib/context";
@@ -331,6 +334,33 @@ export function ChannelList() {
 
       {/* Persistent Voice Bar (Warp Bar) */}
       <VoiceBar />
+
+      {/* Desktop Pro Promo */}
+      <div className="mx-3 mt-4 mb-2">
+        <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a1b1e] to-[#0c0d0e] p-3 ring-1 ring-white/5 transition-all hover:ring-[#ff3b5f]/40">
+          <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-[#ff3b5f]/10 blur-xl transition-all group-hover:bg-[#ff3b5f]/20" />
+          <div className="relative flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ff3b5f]/20 text-[#ff3b5f]">
+                <MonitorDown size={14} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Nightlink Pro</span>
+            </div>
+            <p className="text-[9px] font-medium leading-relaxed text-[#9da0a7]">
+              Get the Desktop app for <span className="text-white">Global Push-to-Talk</span> while gaming.
+            </p>
+            <a 
+              href="https://github.com/MuhamedTawab/Anti/releases" 
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#ff3b5f] py-1.5 text-[9px] font-black uppercase tracking-wider text-white shadow-lg shadow-[#ff3b5f]/20 transition-all hover:scale-[1.02] active:scale-[0.98] hover:bg-[#ff4e6f]"
+            >
+              Download Now
+              <ExternalLink size={10} />
+            </a>
+          </div>
+        </div>
+      </div>
 
       {/* User Footer */}
       <div className="mt-auto p-4 border-t border-white/5 bg-[#080809]">
